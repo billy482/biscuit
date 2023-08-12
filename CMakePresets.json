@@ -1,0 +1,26 @@
+{
+	"version": 6,
+	"cmakeMinimumRequired": {
+		"major": 3,
+		"minor": 23,
+		"patch": 0
+	},
+	"configurePresets": [{
+		"binaryDir": "${sourceDir}/build/debug",
+		"cacheVariables": {
+			"CMAKE_BUILD_TYPE": "Debug"
+		},
+		"description": "Configuration used for developing or debugging the application",
+		"displayName": "Debug configuration",
+		"name": "debug"
+	}, {
+		"binaryDir": "${sourceDir}/build/release",
+		"cacheVariables": {
+			"CMAKE_BUILD_TYPE": "Release"
+		},
+		"description": "Configuration used for using the application",
+		"displayName": "Release configuration",
+		"name": "release"
+	}],
+	"buildPresets": []
+}
