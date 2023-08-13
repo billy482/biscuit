@@ -22,6 +22,8 @@ Key::~Key() {
 
 EVP_PKEY * Key::load_keys(const string& filename) {
 	OSSL_STORE_CTX * ctx = OSSL_STORE_open_ex(filename.c_str(), nullptr, nullptr, UI_OpenSSL(), nullptr, nullptr, nullptr, nullptr);
+	if (ctx == nullptr)
+		return nullptr;
 
 	EVP_PKEY * key = nullptr;
 	while (key == nullptr and !OSSL_STORE_eof(ctx)) {
@@ -39,6 +41,8 @@ EVP_PKEY * Key::load_keys(const string& filename) {
 				key = OSSL_STORE_INFO_get1_PUBKEY(info);
 				break;
 		}
+
+		OSSL_STORE_INFO_free(info);
 	}
 
 	OSSL_STORE_close(ctx);

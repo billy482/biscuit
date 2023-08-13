@@ -1,3 +1,6 @@
+#ifndef __BISCUIT_KEY_HPP__
+#define __BISCUIT_KEY_HPP__
+
 #include <string>
 
 typedef struct evp_pkey_st EVP_PKEY;
@@ -20,3 +23,5 @@ namespace Biscuit {
 			EVP_PKEY * m_public_key = nullptr;
 	};
 }
+
+#endif
