@@ -7,6 +7,7 @@ namespace Biscuit {
 	class Block {
 		public:
 			Block() = default;
+			Block(uint8_t * buffer, uint16_t buffer_size, bool acquire_buffer = false);
 			Block(const uint8_t * buffer, uint16_t buffer_size);
 			Block(const Block& block);
 			Block(Block&& block);
@@ -24,6 +25,7 @@ namespace Biscuit {
 
 			Block& operator=(const Block& block);
 			Block& operator=(Block&& block);
+			bool operator==(const Block& block) const;
 
 		protected:
 			uint8_t * m_buffer = nullptr;

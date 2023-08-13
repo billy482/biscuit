@@ -46,11 +46,8 @@ Block Key::decrypt(const Block& block) const {
 	if (result <= 0) {
 		delete[] buffer;
 		return Block();
-	} else {
-		Block decrypted(buffer, length);
-		delete [] buffer;
-		return decrypted;
-	}
+	} else
+		return Block(buffer, length, true);
 }
 
 Block Key::encrypt(const Block& block) const {
@@ -78,11 +75,8 @@ Block Key::encrypt(const Block& block) const {
 	if (result <= 0) {
 		delete[] buffer;
 		return Block();
-	} else {
-		Block encrypted(buffer, length);
-		delete [] buffer;
-		return encrypted;
-	}
+	} else
+		return Block(buffer, length);
 }
 
 EVP_PKEY * Key::load_keys(const string& filename) {

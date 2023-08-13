@@ -55,9 +55,7 @@ Digest Checksum::digest() {
 	uint32_t length = 0;
 	EVP_DigestFinal(this->m_ctx, buffer, &length);
 
-	Digest digest(buffer, length);
-	delete [] buffer;
-	return digest;
+	return Digest(buffer, length, true);
 }
 
 void Checksum::update(const Block& block) {

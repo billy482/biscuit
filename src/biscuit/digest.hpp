@@ -9,6 +9,7 @@ namespace Biscuit {
 	class Digest : public Block {
 		public:
 			Digest() = default;
+			Digest(uint8_t * buffer, uint16_t buffer_size, bool acquire_buffer = false);
 			Digest(const uint8_t * buffer, uint16_t buffer_size);
 			Digest(const Digest& digest);
 			Digest(Digest&& digest);

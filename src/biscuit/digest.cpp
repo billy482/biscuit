@@ -6,6 +6,8 @@
 
 using namespace Biscuit;
 
+Digest::Digest(uint8_t * buffer, uint16_t buffer_size, bool acquire_buffer) : Block(buffer, buffer_size, acquire_buffer) {}
+
 Digest::Digest(const uint8_t * buffer, uint16_t buffer_size) : Block(buffer, buffer_size) {}
 
 Digest::Digest(const Digest& digest) : Block(digest) {}
