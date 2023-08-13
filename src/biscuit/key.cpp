@@ -1,6 +1,7 @@
 #include <openssl/store.h>
 #include <openssl/ui.h>
 
+#include "block.hpp"
 #include "key.hpp"
 
 using namespace Biscuit;
@@ -19,6 +20,70 @@ Key::~Key() {
 		EVP_PKEY_free(this->m_public_key);
 }
 
+
+Block Key::decrypt(const Block& block) const {
+	EVP_PKEY_CTX * ctx = EVP_PKEY_CTX_new(this->m_private_key, nullptr);
+	if (EVP_PKEY_decrypt_init(ctx) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+	if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+
+	size_t length = 0;
+	if (EVP_PKEY_decrypt(ctx, nullptr, &length, block.buffer(), block.buffer_size()) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+
+	uint8_t * buffer = new uint8_t[length];
+	int result = EVP_PKEY_decrypt(ctx, buffer, &length, block.buffer(), block.buffer_size());
+
+	EVP_PKEY_CTX_free(ctx);
+
+	if (result <= 0) {
+		delete[] buffer;
+		return Block();
+	} else {
+		Block decrypted(buffer, length);
+		delete [] buffer;
+		return decrypted;
+	}
+}
+
+Block Key::encrypt(const Block& block) const {
+	EVP_PKEY_CTX * ctx = EVP_PKEY_CTX_new(this->m_public_key, nullptr);
+	if (EVP_PKEY_encrypt_init(ctx) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+	if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+
+	size_t length = 0;
+	if (EVP_PKEY_encrypt(ctx, nullptr, &length, block.buffer(), block.buffer_size()) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		return Block();
+	}
+
+	uint8_t * buffer = new uint8_t[length];
+	int result = EVP_PKEY_encrypt(ctx, buffer, &length, block.buffer(), block.buffer_size());
+
+	EVP_PKEY_CTX_free(ctx);
+
+	if (result <= 0) {
+		delete[] buffer;
+		return Block();
+	} else {
+		Block encrypted(buffer, length);
+		delete [] buffer;
+		return encrypted;
+	}
+}
 
 EVP_PKEY * Key::load_keys(const string& filename) {
 	OSSL_STORE_CTX * ctx = OSSL_STORE_open_ex(filename.c_str(), nullptr, nullptr, UI_OpenSSL(), nullptr, nullptr, nullptr, nullptr);

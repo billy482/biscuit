@@ -6,11 +6,15 @@
 typedef struct evp_pkey_st EVP_PKEY;
 
 namespace Biscuit {
+	class Block;
+
 	class Key {
 		public:
 			Key(const std::string& filename);
 			~Key();
 
+			Block decrypt(const Block& block) const;
+			Block encrypt(const Block& block) const;
 			inline bool is_valid() const {
 				return this->m_valid;
 			}
