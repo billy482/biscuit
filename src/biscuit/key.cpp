@@ -1,7 +1,7 @@
 #include <openssl/store.h>
 #include <openssl/ui.h>
+#include <QtCore/QByteArray>
 
-#include "block.hpp"
 #include "key.hpp"
 
 using namespace Biscuit;
@@ -21,62 +21,68 @@ Key::~Key() {
 }
 
 
-Block Key::decrypt(const Block& block) const {
+QByteArray Key::decrypt(const QByteArray& block) const {
 	EVP_PKEY_CTX * ctx = EVP_PKEY_CTX_new(this->m_private_key, nullptr);
 	if (EVP_PKEY_decrypt_init(ctx) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 	if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 
 	size_t length = 0;
-	if (EVP_PKEY_decrypt(ctx, nullptr, &length, block.buffer(), block.buffer_size()) <= 0) {
+	if (EVP_PKEY_decrypt(ctx, nullptr, &length, reinterpret_cast<const unsigned char *>(block.data()), block.length()) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 
 	uint8_t * buffer = new uint8_t[length];
-	int result = EVP_PKEY_decrypt(ctx, buffer, &length, block.buffer(), block.buffer_size());
+	int result = EVP_PKEY_decrypt(ctx, buffer, &length, reinterpret_cast<const unsigned char *>(block.data()), block.length());
 
 	EVP_PKEY_CTX_free(ctx);
 
 	if (result <= 0) {
 		delete[] buffer;
-		return Block();
-	} else
-		return Block(buffer, length, true);
+		return QByteArray();
+	} else {
+		QByteArray result(reinterpret_cast<const char *>(buffer), length);
+		delete[] buffer;
+		return result;
+	}
 }
 
-Block Key::encrypt(const Block& block) const {
+QByteArray Key::encrypt(const QByteArray& block) const {
 	EVP_PKEY_CTX * ctx = EVP_PKEY_CTX_new(this->m_public_key, nullptr);
 	if (EVP_PKEY_encrypt_init(ctx) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 	if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 
 	size_t length = 0;
-	if (EVP_PKEY_encrypt(ctx, nullptr, &length, block.buffer(), block.buffer_size()) <= 0) {
+	if (EVP_PKEY_encrypt(ctx, nullptr, &length, reinterpret_cast<const unsigned char *>(block.data()), block.length()) <= 0) {
 		EVP_PKEY_CTX_free(ctx);
-		return Block();
+		return QByteArray();
 	}
 
 	uint8_t * buffer = new uint8_t[length];
-	int result = EVP_PKEY_encrypt(ctx, buffer, &length, block.buffer(), block.buffer_size());
+	int result = EVP_PKEY_encrypt(ctx, buffer, &length, reinterpret_cast<const unsigned char *>(block.data()), block.length());
 
 	EVP_PKEY_CTX_free(ctx);
 
 	if (result <= 0) {
 		delete[] buffer;
-		return Block();
-	} else
-		return Block(buffer, length);
+		return QByteArray();
+	} else {
+		QByteArray result(reinterpret_cast<const char *>(buffer), length);
+		delete[] buffer;
+		return result;
+	}
 }
 
 EVP_PKEY * Key::load_keys(const string& filename) {

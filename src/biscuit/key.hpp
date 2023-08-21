@@ -3,18 +3,17 @@
 
 #include <string>
 
+class QByteArray;
 typedef struct evp_pkey_st EVP_PKEY;
 
 namespace Biscuit {
-	class Block;
-
 	class Key {
 		public:
 			Key(const std::string& filename);
 			~Key();
 
-			Block decrypt(const Block& block) const;
-			Block encrypt(const Block& block) const;
+			QByteArray decrypt(const QByteArray& block) const;
+			QByteArray encrypt(const QByteArray& block) const;
 			inline bool is_valid() const {
 				return this->m_valid;
 			}
