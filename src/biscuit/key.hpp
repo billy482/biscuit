@@ -1,15 +1,14 @@
 #ifndef __BISCUIT_KEY_HPP__
 #define __BISCUIT_KEY_HPP__
 
-#include <string>
-
 class QByteArray;
+class QFileInfo;
 typedef struct evp_pkey_st EVP_PKEY;
 
 namespace Biscuit {
 	class Key {
 		public:
-			Key(const std::string& filename);
+			Key(const QFileInfo& filename);
 			~Key();
 
 			QByteArray decrypt(const QByteArray& block) const;
@@ -19,7 +18,7 @@ namespace Biscuit {
 			}
 
 		private:
-			EVP_PKEY * load_keys(const std::string& filename);
+			EVP_PKEY * load_keys(const QFileInfo& filename);
 
 			bool m_valid = false;
 			EVP_PKEY * m_private_key = nullptr;

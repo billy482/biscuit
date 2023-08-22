@@ -1,15 +1,15 @@
 #include <openssl/store.h>
 #include <openssl/ui.h>
 #include <QtCore/QByteArray>
+#include <QtCore/QFileInfo>
 
 #include "key.hpp"
 
 using namespace Biscuit;
-using std::string;
 
-Key::Key(const string& filename) {
+Key::Key(const QFileInfo& filename) {
 	this->m_private_key = this->load_keys(filename);
-	this->m_public_key = this->load_keys(filename + ".pub");
+	this->m_public_key = this->load_keys(QFileInfo(filename.absoluteFilePath() + QString(".pub")));
 	this->m_valid = this->m_private_key != nullptr and this->m_public_key != nullptr;
 }
 
@@ -85,8 +85,8 @@ QByteArray Key::encrypt(const QByteArray& block) const {
 	}
 }
 
-EVP_PKEY * Key::load_keys(const string& filename) {
-	OSSL_STORE_CTX * ctx = OSSL_STORE_open_ex(filename.c_str(), nullptr, nullptr, UI_OpenSSL(), nullptr, nullptr, nullptr, nullptr);
+EVP_PKEY * Key::load_keys(const QFileInfo& filename) {
+	OSSL_STORE_CTX * ctx = OSSL_STORE_open_ex(filename.absoluteFilePath().toUtf8().data(), nullptr, nullptr, UI_OpenSSL(), nullptr, nullptr, nullptr, nullptr);
 	if (ctx == nullptr)
 		return nullptr;
 

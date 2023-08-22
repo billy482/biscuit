@@ -7,10 +7,20 @@
 using namespace Biscuit;
 using YAML::Node;
 
+QList<Source> Source::ms_sources;
+
 Source::Source(const QString& path) : m_root(path) {
 	this->m_paths.push(QDir(path).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware));
 }
 
+Source::Source(const Source& source) : m_root(source.m_root), m_paths(source.m_paths), m_include_pattern(source.m_include_pattern), m_exclude_pattern(source.m_exclude_pattern), m_exclude_path(source.m_exclude_path) {}
+
+Source::Source(Source&& source) : m_root(source.m_root), m_paths(std::move(source.m_paths)), m_include_pattern(std::move(source.m_include_pattern)), m_exclude_pattern(std::move(source.m_exclude_pattern)), m_exclude_path(std::move(source.m_exclude_path)) {}
+
+
+QList<Source>& Source::get() {
+	return Source::ms_sources;
+}
 
 QFileInfo Source::next() {
 	this->m_lock.lock();
@@ -87,6 +97,16 @@ QFileInfo Source::next() {
 	return QFileInfo();
 }
 
+QIODevice * Source::open(const QFileInfo& file) {
+	QFile * new_file = new QFile(file.absoluteFilePath());
+	if (new_file->open(QIODevice::ReadOnly))
+		return new_file;
+	else {
+		delete new_file;
+		return nullptr;
+	}
+}
+
 void Source::parse(const Node& node) {
 	if (not node.IsMap())
 		return;
@@ -114,4 +134,28 @@ void Source::parse(const Node& node) {
 			this->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString(str_pattern.c_str())));
 		}
 	}
+}
+
+void Source::parse(const QString& path, const YAML::Node& node) {
+	Source::ms_sources << Source(path);
+	Source::ms_sources.last().parse(node);
+}
+
+
+Source& Source::operator=(const Source& source) {
+	this->m_root = source.m_root;
+	this->m_paths = source.m_paths;
+	this->m_include_pattern = source.m_include_pattern;
+	this->m_exclude_pattern = source.m_exclude_pattern;
+	this->m_exclude_path = source.m_exclude_path;
+	return *this;
+}
+
+Source& Source::operator=(Source&& source) {
+	this->m_root = source.m_root;
+	this->m_paths = std::move(source.m_paths);
+	this->m_include_pattern = std::move(source.m_include_pattern);
+	this->m_exclude_pattern = std::move(source.m_exclude_pattern);
+	this->m_exclude_path = std::move(source.m_exclude_path);
+	return *this;
 }
