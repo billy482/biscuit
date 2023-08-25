@@ -1,5 +1,5 @@
-#ifndef __BISCUIT_SOURCE_HPP__
-#define __BISCUIT_SOURCE_HPP__
+#ifndef __BISCUIT_WORKER_BACKUP_HPP__
+#define __BISCUIT_WORKER_BACKUP_HPP__
 
 #include <QtCore/QRunnable>
 
