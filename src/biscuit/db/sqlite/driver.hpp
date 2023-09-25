@@ -5,18 +5,22 @@
 
 #include "../driver.hpp"
 
+typedef struct sqlite3 sqlite3;
+
 namespace Biscuit {
 	namespace Db {
 		namespace Sqlite {
-			class SQliteDriver : public Driver {
+			class SqliteDriver : public Driver {
 				public:
-					virtual ~SQliteDriver() = default;
+					virtual ~SqliteDriver() = default;
 
-					static SQliteDriver * configure(const YAML::Node& node);
+					static SqliteDriver * configure(const YAML::Node& node);
 					virtual Connection * open();
 
 				private:
-					SQliteDriver(const QFileInfo& path);
+					SqliteDriver(const QFileInfo& path);
+
+					bool create_db(sqlite3 * db);
 
 					QFileInfo m_path;
 			};

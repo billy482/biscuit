@@ -1,42 +1,34 @@
 ---
-backup: {
-  block_size: 4096,
-  checksum: sha1,
+backup:
+  block_size: 4096
+  checksum: sha1
   strategy: timestamp
-}
-database: {
-  driver: sqlite,
+database:
+  driver: sqlite
   path: backup/files.db
-}
-log: {
-  level: info,
+log:
+  levels:
+    core: debug
+    database: debug
+    ssh: debug
   path: backup/backup.log
-}
-sources: {
-  /home/guillaume/prog/: {
-    include_patterns: [
-      '*.cpp',
-      '*.hpp'
-    ],
-    exclude: [/build],
-    exclude_patterns: [
-      '.*.sw?'
-    ],
-    options: {
-      'exclude_other_filesystem': false,
-      'exclude_if_present': [.no_backup]
-    },
-    sub_directories: {
-      'foo/bar': {
-        include_patterns: [
-          '*.hpp'
-        ]
-      }
-    }
-  },
-  bar: {
-    include_patterns: [
-      '*.cpp'
-    ]
-  }
-}
+sources:
+  /home/guillaume/prog/:
+    include_patterns:
+      - '*.cpp'
+      - '*.hpp'
+    exclude:
+      - /build
+    exclude_patterns:
+      - '.*.sw?'
+    options:
+      exclude_other_filesystem': false
+      exclude_if_present':
+        - .no_backup
+    sub_directories:
+      'foo/bar':
+        include_patterns:
+          - '*.hpp'
+  bar:
+    include_patterns:
+      - '*.cpp'
