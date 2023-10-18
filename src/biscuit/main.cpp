@@ -3,41 +3,16 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/daily_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/ringbuffer_sink.h>
 #include <yaml-cpp/yaml.h>
 
-#include "db/connection.hpp"
-#include "db/driver.hpp"
-#include "source.hpp"
-
 namespace Biscuit {
-	bool configure_log(const YAML::Node& node);
+	enum class modes {backup, exit, help, restore};
+
 	spdlog::level::level_enum find_log_level(const std::string& level);
+	modes parse_arg(int argc, char * argv[]);
 }
 
-
-bool Biscuit::configure_log(const YAML::Node& node) {
-	const YAML::Node& node_path = node["path"];
-	if (node_path.IsScalar()) {
-		std::string str_path = node_path.as<std::string>();
-		auto daily_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(str_path, 0, 0);
-
-		const YAML::Node& node_level = node["levels"];
-		for (const char * module: {"core", "database", "ssh"}) {
-			const YAML::Node& node_module = node_level[module];
-			spdlog::level::level_enum level = spdlog::level::warn;
-			if (node_module.IsScalar())
-				level = find_log_level(node_module.as<std::string>());
-
-			auto logger = std::make_shared<spdlog::logger>(module, daily_sink);
-			logger->set_level(level);
-			spdlog::register_logger(logger);
-		}
-
-		spdlog::flush_every(std::chrono::seconds(5));
-	}
-
-	return true;
-}
 
 spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
 	static struct levels {
@@ -62,11 +37,16 @@ spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
 	return spdlog::level::off;
 }
 
-int main(int, char *[]) {
-	/*
+Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 	using namespace clipp;
 
-	enum class modes {backup, help, restore};
+	auto ring_buffer_sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(128);
+	auto logger = std::make_shared<spdlog::logger>("logger_name", ring_buffer_sink);
+	logger->set_level(spdlog::level::trace);
+
+	logger->info("Starting biscuit");
+	logger->info("Parsing parameters");
+
 	modes mode = modes::backup;
 
 	auto backup = (
@@ -92,62 +72,77 @@ int main(int, char *[]) {
 	);
 
 	if (parse(argc, argv, cli)) {
-		switch (mode) {
-			case modes::backup:
-				break;
+		if (mode == modes::help)
+			std::cout << make_man_page(cli, "biscuit");
+		else {
+			logger->debug("Logging \"biscuit.yaml\"");
+			bool failed = true;
+			try {
+				YAML::Node node = YAML::LoadFile("biscuit.yaml");
+				const YAML::Node& node_log = node["log"];
 
-			case modes::help:
-				std::cout << make_man_page(cli, "biscuit");
-				break;
+				if (node_log.IsMap()) {
+					const YAML::Node& node_path = node_log["path"];
 
-			case modes::restore:
-				break;
-		}
-	} else
-		std::cout << make_man_page(cli, "biscuit");
-	*/
+					if (node_path.IsScalar()) {
+						std::string str_path = node_path.as<std::string>();
+						auto daily_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(str_path, 0, 0);
 
-	try {
-		spdlog::debug("Starting biscuit");
-		spdlog::debug("Logging \"biscuit.yaml\"");
+						const YAML::Node& node_level = node_log["levels"];
+						for (const char * module: {"core", "database", "ssh"}) {
+							const YAML::Node& node_module = node_level[module];
+							spdlog::level::level_enum level = spdlog::level::warn;
+							if (node_module.IsScalar())
+								level = find_log_level(node_module.as<std::string>());
 
-		YAML::Node node = YAML::LoadFile("biscuit.yaml");
-		spdlog::debug("\"biscuit.yaml\" loaded");
+							auto logger = std::make_shared<spdlog::logger>(module, daily_sink);
+							logger->set_level(level);
+							spdlog::register_logger(logger);
+						}
 
-		spdlog::debug("Configuring logs");
-		if (not Biscuit::configure_log(node["log"])) {
-			spdlog::debug("Error while configuring logs");
-			return 1;
-		}
+						spdlog::flush_every(std::chrono::seconds(1));
+					}
+				}
 
-		auto logger = spdlog::get("core");
-		logger->debug("Loading database");
-		Biscuit::Db::Driver::configure(node["database"]);
-		Biscuit::Db::Driver * driver = Biscuit::Db::Driver::get();
-		Biscuit::Db::Connection * connection = driver->open();
-		connection->connected();
+				failed = false;
+			} catch (const YAML::BadFile &ex) {
+				logger->critical("Error while loading {}", "biscuit.yaml");
+			} catch (const YAML::ParserException& ex) {
+				logger->critical("Error while loading {}", "biscuit.yaml");
+			}
 
-		const YAML::Node& sources = node["sources"];
+			if (failed) {
+				auto sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
+				auto logger = std::make_shared<spdlog::logger>("core", sink);
+				logger->set_level(spdlog::level::trace);
 
-		for (auto iter : sources) {
-			std::string key = iter.first.as<std::string>();
-			const YAML::Node& value = sources[key];
-
-			Biscuit::Source src(QString(key.c_str()));
-			src.parse(value);
-
-			for (;;) {
-				QFileInfo file_info = src.next();
-				qDebug() << file_info;
-				if (not file_info.exists())
-					break;
+				for (const spdlog::details::log_msg_buffer& msg : ring_buffer_sink->last_raw())
+					logger->log(msg.time, msg.source, msg.level, msg.payload);
+			} else {
+				auto logger = spdlog::get("core");
+				for (const spdlog::details::log_msg_buffer& msg : ring_buffer_sink->last_raw())
+					logger->log(msg.time, msg.source, msg.level, msg.payload);
 			}
 		}
-	} catch (const YAML::ParserException& ex) {
-		std::cout << ex.what() << std::endl;
-	} catch (const YAML::BadFile& ex) {
-		std::cout << ex.what() << std::endl;
+		return mode;
+	} else {
+		std::cout << make_man_page(cli, "biscuit");
+		return modes::exit;
 	}
+}
 
-	return 0;
+int main(int argc, char * argv[]) {
+	switch (Biscuit::parse_arg(argc, argv)) {
+		case Biscuit::modes::backup:
+			return 0;
+
+		case Biscuit::modes::exit:
+			return 1;
+
+		case Biscuit::modes::help:
+			return 0;
+
+		case Biscuit::modes::restore:
+			return 0;
+	}
 }

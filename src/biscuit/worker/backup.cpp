@@ -1,10 +1,13 @@
 #include <QtCore/QCryptographicHash>
+#include <QtCore/QIODevice>
 
 #include "backup.hpp"
-#include "../source.hpp"
+#include "../source/file-info.hpp"
+#include "../source/source.hpp"
 
 using namespace Biscuit::Worker;
-using Biscuit::Source;
+using Biscuit::Source::FileInfo;
+using Biscuit::Source::Source;
 
 Backup::Backup() : QRunnable() {
 	this->setAutoDelete(false);
@@ -12,12 +15,11 @@ Backup::Backup() : QRunnable() {
 
 
 void Backup::run() {
-	QList<Source>& sources = Source::get();
-	for (Source& source : sources) {
-		for (QFileInfo file_info = source.next(); file_info.exists(); file_info = source.next()) {
+	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
+		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
 			// compare timestamp
 
-			QIODevice * file_stream = source.open(file_info);
+			QIODevice * file_stream = source->open(file_info);
 
 			QByteArray buffer = file_stream->read(4096);
 			for (quint32 sequence = 0; buffer.size() > 0; sequence++) {

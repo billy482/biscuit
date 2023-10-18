@@ -1,12 +1,14 @@
-#ifndef __BISCUIT_SOURCE_HPP__
-#define __BISCUIT_SOURCE_HPP__
+#ifndef __BISCUIT_SOURCE_SOURCE_HPP__
+#define __BISCUIT_SOURCE_SOURCE_HPP__
 
+/*
 #include <QtCore/QFileInfo>
 #include <QtCore/QList>
 #include <QtCore/QMutex>
 #include <QtCore/QStack>
 #include <QtCore/QString>
 #include <QtCore/QRegularExpression>
+*/
 
 namespace YAML {
 	class Node;
@@ -15,6 +17,34 @@ namespace YAML {
 class QIODevice;
 
 namespace Biscuit {
+	namespace Source {
+		class FileInfo;
+
+		class Source {
+			public:
+				static Source * first_source();
+				virtual QIODevice * open(const FileInfo& file) = 0;
+				virtual FileInfo next() = 0;
+				inline Source * next_source() {
+					return this->m_next;
+				}
+				inline Source * previous_source() {
+					return this->m_previous;
+				}
+
+			protected:
+				Source() = default;
+				virtual ~Source();
+
+			private:
+				static Source * ms_first;
+				static Source * ms_last;
+				Source * m_next = nullptr;
+				Source * m_previous = nullptr;
+		};
+	}
+
+	/*
 	class Source {
 		public:
 			Source(const QString& path);
@@ -39,6 +69,7 @@ namespace Biscuit {
 			QList<QString> m_exclude_path;
 			static QList<Source> ms_sources;
 	};
+	*/
 }
 
 #endif
