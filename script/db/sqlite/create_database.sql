@@ -20,9 +20,8 @@ CREATE TABLE host (
 
 CREATE TABLE files (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')),
-	hash BLOB NOT NULL,
-	data BLOB NOT NULL,
+	path TEXT NOT NULL,
+	last_modified INTEGER NOT NULL,
 	host INTEGER NULL REFERENCES host(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 

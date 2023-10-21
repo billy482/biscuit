@@ -10,6 +10,7 @@ namespace Biscuit {
 				Backup();
 				virtual ~Backup() = default;
 
+				static int do_backup();
 				virtual void run();
 		};
 	}

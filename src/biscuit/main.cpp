@@ -6,12 +6,17 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <yaml-cpp/yaml.h>
 
+#include "db/connection.hpp"
+#include "db/driver.hpp"
+
 namespace Biscuit {
 	enum class modes {backup, exit, help, restore};
 
 	spdlog::level::level_enum find_log_level(const std::string& level);
 	modes parse_arg(int argc, char * argv[]);
 }
+
+using YAML::Node;
 
 
 spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
@@ -77,20 +82,21 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 		else {
 			logger->debug("Logging \"biscuit.yaml\"");
 			bool failed = true;
+			Node root_node;
 			try {
-				YAML::Node node = YAML::LoadFile("biscuit.yaml");
-				const YAML::Node& node_log = node["log"];
+				root_node = YAML::LoadFile("biscuit.yaml");
+				const Node& node_log = root_node["log"];
 
 				if (node_log.IsMap()) {
-					const YAML::Node& node_path = node_log["path"];
+					const Node& node_path = node_log["path"];
 
 					if (node_path.IsScalar()) {
 						std::string str_path = node_path.as<std::string>();
 						auto daily_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(str_path, 0, 0);
 
-						const YAML::Node& node_level = node_log["levels"];
+						const Node& node_level = node_log["levels"];
 						for (const char * module: {"core", "database", "ssh"}) {
-							const YAML::Node& node_module = node_level[module];
+							const Node& node_module = node_level[module];
 							spdlog::level::level_enum level = spdlog::level::warn;
 							if (node_module.IsScalar())
 								level = find_log_level(node_module.as<std::string>());
@@ -123,6 +129,12 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 				for (const spdlog::details::log_msg_buffer& msg : ring_buffer_sink->last_raw())
 					logger->log(msg.time, msg.source, msg.level, msg.payload);
 			}
+
+			const Node& node_db = root_node["database"];
+			if (not Db::Driver::configure(node_db)) {
+				logger->critical("Failed to configure database driver");
+				return modes::exit;
+			}
 		}
 		return mode;
 	} else {
@@ -133,8 +145,12 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 
 int main(int argc, char * argv[]) {
 	switch (Biscuit::parse_arg(argc, argv)) {
-		case Biscuit::modes::backup:
+		case Biscuit::modes::backup: {
+			Biscuit::Db::Driver * db_driver = Biscuit::Db::Driver::get();
+			Biscuit::Db::Connection * connection = db_driver->open();
+			connection->connected();
 			return 0;
+		}
 
 		case Biscuit::modes::exit:
 			return 1;
