@@ -10,11 +10,17 @@ namespace Biscuit {
 	namespace Source {
 		class FileInfo {
 			public:
-				FileInfo();
-				FileInfo(const QString& path, const QDateTime& modified_time);
+				FileInfo() = default;
+				FileInfo(const QString& path, const QDateTime& modified_time, bool is_file, uint64_t file_size);
 				FileInfo(const QFileInfo& info);
 				FileInfo(const FileInfo& info);
 
+				inline uint64_t file_size() const {
+					return this->m_file_size;
+				}
+				inline bool is_file() const {
+					return this->m_is_file;
+				}
 				inline bool is_invalid() const {
 					return this->m_is_invalid;
 				}
@@ -31,7 +37,9 @@ namespace Biscuit {
 			private:
 				QString m_path;
 				QDateTime m_modified_time;
-				bool m_is_invalid;
+				bool m_is_file = false;
+				uint64_t m_file_size = 0;
+				bool m_is_invalid = true;
 		};
 	}
 }

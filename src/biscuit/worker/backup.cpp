@@ -1,6 +1,10 @@
 #include <QtCore/QCryptographicHash>
+#include <QtCore/QHash>
 #include <QtCore/QIODevice>
+#include <QtCore/QMutex>
+#include <QtCore/QWaitCondition>
 #include <spdlog/spdlog.h>
+#include <yaml-cpp/yaml.h>
 
 #include "backup.hpp"
 #include "../db/connection.hpp"
@@ -20,8 +24,11 @@ Backup::Backup() : QRunnable() {
 }
 
 
-int Backup::do_backup() {
-
+int Backup::do_backup(const YAML::Node&) {
+	// TODO: use a thread pool
+	
+	Backup backup;
+	backup.run();
 
 	return 0;
 }
@@ -43,16 +50,29 @@ void Backup::run() {
 
 	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
-			connection->is_newer_or_exists(file_info);
+			// TODO: update status
 
-			QIODevice * file_stream = source->open(file_info);
+			if (connection->is_newer_or_not_exists(file_info) and file_info.is_file() and file_info.file_size() > 0) {
+				QIODevice * file_stream = source->open(file_info);
 
-			QByteArray buffer = file_stream->read(4096);
-			for (quint32 sequence = 0; buffer.size() > 0; sequence++) {
-				QByteArray digest = QCryptographicHash::hash(buffer, QCryptographicHash::Sha1);
-				// find block into db and insert it if not found then retrieve its id
+				QByteArray buffer = file_stream->read(4096);
+				for (quint32 sequence = 0; buffer.size() > 0; sequence++) {
+					QByteArray digest = QCryptographicHash::hash(buffer, QCryptographicHash::Sha1);
 
-				buffer = file_stream->read(4096);
+					static QHash<QByteArray, QByteArray> cache;
+					static QMutex l;
+					static QWaitCondition w;
+
+					l.lock();
+					while (cache.contains(digest))
+						w.wait(&l);
+					cache[digest] = buffer;
+					l.unlock();
+
+					// find block into db and insert it if not found then retrieve its id
+
+					buffer = file_stream->read(4096);
+				}
 			}
 		}
 	}

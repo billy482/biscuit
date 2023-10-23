@@ -16,7 +16,7 @@ namespace Biscuit {
 					virtual ~SqliteConnection();
 
 					virtual bool connected();
-					virtual bool is_newer_or_exists(const Source::FileInfo& file_info);
+					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info);
 
 				private:
 					sqlite3 * m_connection;

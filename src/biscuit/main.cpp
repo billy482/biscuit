@@ -8,15 +8,18 @@
 
 #include "db/connection.hpp"
 #include "db/driver.hpp"
+#include "key.hpp"
+#include "source/source.hpp"
+#include "worker/backup.hpp"
 
 namespace Biscuit {
 	enum class modes {backup, exit, help, restore};
 
 	spdlog::level::level_enum find_log_level(const std::string& level);
 	modes parse_arg(int argc, char * argv[]);
-}
 
-using YAML::Node;
+	YAML::Node configuration;
+}
 
 
 spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
@@ -82,21 +85,20 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 		else {
 			logger->debug("Logging \"biscuit.yaml\"");
 			bool failed = true;
-			Node root_node;
 			try {
-				root_node = YAML::LoadFile("biscuit.yaml");
-				const Node& node_log = root_node["log"];
+				Biscuit::configuration = YAML::LoadFile("biscuit.yaml");
+				const YAML::Node& node_log = Biscuit::configuration["log"];
 
 				if (node_log.IsMap()) {
-					const Node& node_path = node_log["path"];
+					const YAML::Node& node_path = node_log["path"];
 
 					if (node_path.IsScalar()) {
 						std::string str_path = node_path.as<std::string>();
 						auto daily_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(str_path, 0, 0);
 
-						const Node& node_level = node_log["levels"];
+						const YAML::Node& node_level = node_log["levels"];
 						for (const char * module: {"core", "database", "ssh"}) {
-							const Node& node_module = node_level[module];
+							const YAML::Node& node_module = node_level[module];
 							spdlog::level::level_enum level = spdlog::level::warn;
 							if (node_module.IsScalar())
 								level = find_log_level(node_module.as<std::string>());
@@ -130,9 +132,21 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 					logger->log(msg.time, msg.source, msg.level, msg.payload);
 			}
 
-			const Node& node_db = root_node["database"];
+			const YAML::Node& node_db = Biscuit::configuration["database"];
 			if (not Db::Driver::configure(node_db)) {
 				logger->critical("Failed to configure database driver");
+				return modes::exit;
+			}
+
+			const YAML::Node& node_sources = Biscuit::configuration["sources"];
+			if (not Source::Source::parse(node_sources)) {
+				logger->critical("Failed to configure sources");
+				return modes::exit;
+			}
+
+			const YAML::Node& node_key = Biscuit::configuration["key"];
+			if (not Key::configure(node_key)) {
+				logger->critical("Failed to configure key");
 				return modes::exit;
 			}
 		}
@@ -145,12 +159,8 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 
 int main(int argc, char * argv[]) {
 	switch (Biscuit::parse_arg(argc, argv)) {
-		case Biscuit::modes::backup: {
-			Biscuit::Db::Driver * db_driver = Biscuit::Db::Driver::get();
-			Biscuit::Db::Connection * connection = db_driver->open();
-			connection->connected();
-			return 0;
-		}
+		case Biscuit::modes::backup:
+			return Biscuit::Worker::Backup::do_backup(Biscuit::configuration);
 
 		case Biscuit::modes::exit:
 			return 1;

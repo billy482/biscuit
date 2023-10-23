@@ -18,9 +18,9 @@ bool SqliteConnection::connected() {
 	return true;
 }
 
-bool SqliteConnection::is_newer_or_exists(const Source::FileInfo& file_info) {
+bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info) {
 	sqlite3_stmt * statement = nullptr;
-	int ret = sqlite3_prepare(this->m_connection, "SELECT * FROM files WHERE path = $1 AND last_modified < $2", 58, &statement, nullptr);
+	int ret = sqlite3_prepare(this->m_connection, "SELECT * FROM files WHERE path = $1 AND last_modified >= $2", 59, &statement, nullptr);
 	if (ret == SQLITE_ERROR) {
 		sqlite3_finalize(statement);
 		return false;
@@ -41,5 +41,5 @@ bool SqliteConnection::is_newer_or_exists(const Source::FileInfo& file_info) {
 
 	ret = sqlite3_step(statement);
 	sqlite3_finalize(statement);
-	return ret == SQLITE_ROW;
+	return ret == SQLITE_DONE;
 }

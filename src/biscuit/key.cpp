@@ -2,15 +2,29 @@
 #include <openssl/ui.h>
 #include <QtCore/QByteArray>
 #include <QtCore/QFileInfo>
+#include <QtCore/QString>
+#include <yaml-cpp/yaml.h>
 
 #include "key.hpp"
 
 using namespace Biscuit;
 
+Key Key::ms_key;
+
 Key::Key(const QFileInfo& filename) {
 	this->m_private_key = this->load_keys(filename);
 	this->m_public_key = this->load_keys(QFileInfo(filename.absoluteFilePath() + QString(".pub")));
 	this->m_valid = this->m_private_key != nullptr and this->m_public_key != nullptr;
+}
+
+Key::Key(Key&& key) {
+	this->m_private_key = key.m_private_key;
+	this->m_public_key = key.m_public_key;
+	this->m_valid = key.m_valid;
+
+	key.m_private_key = nullptr;
+	key.m_public_key = nullptr;
+	key.m_valid = false;
 }
 
 Key::~Key() {
@@ -20,6 +34,16 @@ Key::~Key() {
 		EVP_PKEY_free(this->m_public_key);
 }
 
+
+bool Key::configure(const YAML::Node& config) {
+	const YAML::Node& path = config["path"];
+	if (not path.IsScalar()) {
+		return false;
+	}
+
+	Key::ms_key = Key(QFileInfo(QString(path.as<std::string>().c_str())));
+	return Key::ms_key.is_valid();
+}
 
 QByteArray Key::decrypt(const QByteArray& block) const {
 	EVP_PKEY_CTX * ctx = EVP_PKEY_CTX_new(this->m_private_key, nullptr);
@@ -113,4 +137,17 @@ EVP_PKEY * Key::load_keys(const QFileInfo& filename) {
 	OSSL_STORE_close(ctx);
 
 	return key;
+}
+
+
+Key& Key::operator=(Key&& key) {
+	this->m_private_key = key.m_private_key;
+	this->m_public_key = key.m_public_key;
+	this->m_valid = key.m_valid;
+
+	key.m_private_key = nullptr;
+	key.m_public_key = nullptr;
+	key.m_valid = false;
+
+	return *this;
 }

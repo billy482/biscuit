@@ -3,6 +3,10 @@
 
 #include <QtCore/QRunnable>
 
+namespace YAML {
+	class Node;
+}
+
 namespace Biscuit {
 	namespace Worker {
 		class Backup : public QRunnable {
@@ -10,7 +14,7 @@ namespace Biscuit {
 				Backup();
 				virtual ~Backup() = default;
 
-				static int do_backup();
+				static int do_backup(const YAML::Node& config);
 				virtual void run();
 		};
 	}

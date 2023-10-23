@@ -18,7 +18,7 @@ namespace Biscuit {
 				inline const Driver& driver() const {
 					return this->m_driver;
 				}
-				virtual bool is_newer_or_exists(const Source::FileInfo& file_info) = 0;
+				virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info) = 0;
 
 			protected:
 				Connection(Driver& driver);

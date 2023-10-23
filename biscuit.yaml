@@ -6,6 +6,8 @@ backup:
 database:
   driver: sqlite
   path: backup/files.db
+key:
+  path: key
 log:
   levels:
     core: debug
@@ -13,7 +15,7 @@ log:
     ssh: debug
   path: backup/backup.log
 sources:
-  /home/guillaume/prog/:
+  /build/:
     include_patterns:
       - '*.cpp'
       - '*.hpp'
@@ -22,13 +24,10 @@ sources:
     exclude_patterns:
       - '.*.sw?'
     options:
-      exclude_other_filesystem': false
-      exclude_if_present':
+      exclude_other_filesystem: false
+      exclude_if_present:
         - .no_backup
     sub_directories:
       'foo/bar':
         include_patterns:
           - '*.hpp'
-  bar:
-    include_patterns:
-      - '*.cpp'
