@@ -1,3 +1,4 @@
+#include <spdlog/spdlog.h>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <yaml-cpp/yaml.h>
@@ -58,6 +59,8 @@ QIODevice * File::open(const FileInfo& file) {
 }
 
 FileInfo File::next() {
+	auto logger = spdlog::get("core");
+
 	this->m_lock.lock();
 
 	while (not this->m_paths.isEmpty()) {
@@ -81,8 +84,10 @@ FileInfo File::next() {
 					}
 				}
 
-				if (not has_matched)
+				if (not has_matched) {
+					logger->debug("Ignoring file: {}", file.filePath().toLocal8Bit().data());
 					continue;
+				}
 			}
 
 			if (this->m_exclude_pattern.size() > 0) {

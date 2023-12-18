@@ -22,8 +22,10 @@ SqliteDriver * SqliteDriver::configure(const Node& node) {
 }
 
 bool SqliteDriver::create_db(sqlite3 * connection) {
+	auto logger = spdlog::get("database");
+
 	const char * queries[] = {
-		"CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint BLOB NOT NULL UNIQUE, length INTEGER NOT NULL CHECK (length > 0), created INTEGER NOT NULL, expire_at INTEGER)",
+		"CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint BLOB NOT NULL UNIQUE, hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')), length INTEGER NOT NULL CHECK (length > 0), first_use INTEGER NOT NULL DEFAULT (NOW()), last_use INTEGER NOT NULL DEFAULT (NOW()))",
 		"CREATE TABLE blocks (id INTEGER PRIMARY KEY AUTOINCREMENT, hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')), hash BLOB NOT NULL, data BLOB NOT NULL)",
 		"CREATE TABLE host (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT NOT NULL)",
 		"CREATE TABLE files (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, last_modified INTEGER NOT NULL, host INTEGER NULL REFERENCES host(id) ON UPDATE CASCADE ON DELETE RESTRICT)",
@@ -39,8 +41,10 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 	for (uint8_t i = 0; queries[i] != nullptr; i++) {
 		sqlite3_stmt * statement = nullptr;
 		int ret = sqlite3_prepare_v2(connection, queries[i], strlen(queries[i]), &statement, nullptr);
-		if (ret != SQLITE_OK)
+		if (ret != SQLITE_OK) {
+			logger->critical("Sqlite: error while preparing query: {} because {}", queries[i], sqlite3_errmsg(connection));
 			return false;
+		}
 
 		ret = sqlite3_step(statement);
 		sqlite3_finalize(statement);

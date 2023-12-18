@@ -1,9 +1,10 @@
 CREATE TABLE keys (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	fingerprint BLOB NOT NULL UNIQUE,
+	hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')),
 	length INTEGER NOT NULL CHECK (length > 0),
-	created INTEGER NOT NULL,
-	expire_at INTEGER
+	first_use INTEGER NOT NULL DEFAULT (NOW()),
+	last_use INTEGER NOT NULL DEFAULT (NOW())
 );
 
 CREATE TABLE blocks (

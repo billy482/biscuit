@@ -9,6 +9,7 @@
 #include "backup.hpp"
 #include "../db/connection.hpp"
 #include "../db/driver.hpp"
+#include "../key.hpp"
 #include "../source/file-info.hpp"
 #include "../source/source.hpp"
 
@@ -26,6 +27,12 @@ Backup::Backup() : QRunnable() {
 
 int Backup::do_backup(const YAML::Node&) {
 	// TODO: use a thread pool
+
+	if (not Key::get().open_for_encrypt()) {
+		auto logger = spdlog::get("core");
+		logger->critical("Failed to open keys");
+		return 1;
+	}
 	
 	Backup backup;
 	backup.run();
@@ -48,9 +55,18 @@ void Backup::run() {
 		return;
 	}
 
+	static QMutex l;
+	l.lock();
+	Key& key = Key::get();
+	connection->synchronize_key(key);
+
+	l.unlock();
+
 	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
 			// TODO: update status
+
+			logger->debug("Backup: checking file: {}", file_info.path().toLocal8Bit().data());
 
 			if (connection->is_newer_or_not_exists(file_info) and file_info.is_file() and file_info.file_size() > 0) {
 				QIODevice * file_stream = source->open(file_info);
@@ -60,7 +76,6 @@ void Backup::run() {
 					QByteArray digest = QCryptographicHash::hash(buffer, QCryptographicHash::Sha1);
 
 					static QHash<QByteArray, QByteArray> cache;
-					static QMutex l;
 					static QWaitCondition w;
 
 					l.lock();

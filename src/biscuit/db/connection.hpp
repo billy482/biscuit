@@ -2,6 +2,8 @@
 #define __BISCUIT_DB_CONNECTION_HPP__
 
 namespace Biscuit {
+	class Key;
+
 	namespace Source {
 		class FileInfo;
 	}
@@ -19,6 +21,7 @@ namespace Biscuit {
 					return this->m_driver;
 				}
 				virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info) = 0;
+				virtual bool synchronize_key(const Key& key) = 0;
 
 			protected:
 				Connection(Driver& driver);
