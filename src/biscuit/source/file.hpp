@@ -8,18 +8,22 @@
 #include <QtCore/QStack>
 
 #include "source.hpp"
+#include "../host.hpp"
 
 namespace Biscuit {
 	namespace Source {
 		class File : public Source {
 			public:
 				static File * configure(const QString& path, const YAML::Node& node);
+				virtual Host& host();
+				virtual const Host& host() const;
 				virtual QIODevice * open(const FileInfo& file) override;
 				virtual FileInfo next() override;
 
 			private:
 				File(const QString& path);
 
+				Host m_host;
 				QMutex m_lock;
 				QFileInfo m_root;
 				QStack<QFileInfoList> m_paths;

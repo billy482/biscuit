@@ -16,10 +16,14 @@ namespace Biscuit {
 					virtual ~SqliteConnection();
 
 					virtual bool connected();
+					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const Key& key);
 					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info);
+					virtual bool synchronize_host(const Host& host);
 					virtual bool synchronize_key(const Key &key);
 
 				private:
+					void print_error();
+
 					sqlite3 * m_connection;
 			};
 		}

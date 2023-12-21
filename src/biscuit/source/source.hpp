@@ -8,12 +8,16 @@ namespace YAML {
 class QIODevice;
 
 namespace Biscuit {
+	class Host;
+
 	namespace Source {
 		class FileInfo;
 
 		class Source {
 			public:
 				static Source * first_source();
+				virtual Host& host() = 0;
+				virtual const Host& host() const = 0;
 				virtual QIODevice * open(const FileInfo& file) = 0;
 				virtual FileInfo next() = 0;
 				inline Source * next_source() {

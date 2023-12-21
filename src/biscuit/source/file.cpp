@@ -48,6 +48,14 @@ File * File::configure(const QString& path, const Node& node) {
 	return new_file;
 }
 
+Biscuit::Host& File::host() {
+	return this->m_host;
+}
+
+const Biscuit::Host& File::host() const {
+	return this->m_host;
+}
+
 QIODevice * File::open(const FileInfo& file) {
 	QFile * new_file = new QFile(file.path());
 	if (new_file->open(QIODevice::ReadOnly))

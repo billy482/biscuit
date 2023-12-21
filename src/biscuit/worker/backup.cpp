@@ -9,6 +9,7 @@
 #include "backup.hpp"
 #include "../db/connection.hpp"
 #include "../db/driver.hpp"
+#include "../host.hpp"
 #include "../key.hpp"
 #include "../source/file-info.hpp"
 #include "../source/source.hpp"
@@ -59,10 +60,15 @@ void Backup::run() {
 	l.lock();
 	Key& key = Key::get();
 	connection->synchronize_key(key);
-
 	l.unlock();
 
 	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
+		const Host& host = source->host();
+		if (not connection->synchronize_host(host)) {
+			logger->error("Backup: failed to synchronize host: {}", host.hostname().toLocal8Bit().data());
+			continue;
+		}
+
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
 			// TODO: update status
 
@@ -85,6 +91,15 @@ void Backup::run() {
 					l.unlock();
 
 					// find block into db and insert it if not found then retrieve its id
+					static const QString hash_algo = "sha1";
+					if (not connection->has_block(digest, hash_algo, key)) {
+
+					}
+
+					l.lock();
+					cache.remove(digest);
+					w.notify_all();
+					l.unlock();
 
 					buffer = file_stream->read(4096);
 				}

@@ -3,18 +3,19 @@ CREATE TABLE keys (
 	fingerprint BLOB NOT NULL UNIQUE,
 	hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')),
 	length INTEGER NOT NULL CHECK (length > 0),
-	first_use INTEGER NOT NULL DEFAULT (NOW()),
-	last_use INTEGER NOT NULL DEFAULT (NOW())
+	first_use INTEGER NOT NULL DEFAULT (unixepoch()),
+	last_use INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE blocks (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')),
 	hash BLOB NOT NULL,
-	data BLOB NOT NULL
+	data BLOB NOT NULL,
+	key INTEGER REFERENCES keys(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
-CREATE TABLE host (
+CREATE TABLE hosts (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	hostname TEXT NOT NULL
 );
@@ -22,7 +23,7 @@ CREATE TABLE host (
 CREATE TABLE files (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	path TEXT NOT NULL,
-	last_modified INTEGER NOT NULL,
+	last_modified INTEGER NOT NULL DEFAULT (unixepoch()),
 	host INTEGER NULL REFERENCES host(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
@@ -34,7 +35,7 @@ CREATE TABLE files2blocks (
 
 CREATE TABLE backups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	start_time INTEGER NOT NULL,
+	start_time INTEGER NOT NULL DEFAULT (unixepoch()),
 	end_time INTEGER,
 	size INTEGER CHECK (size >= 0),
 	increment_size INTEGER CHECK (increment_size >= 0),
