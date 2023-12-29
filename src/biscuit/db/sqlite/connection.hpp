@@ -17,6 +17,7 @@ namespace Biscuit {
 
 					virtual bool connected();
 					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const Key& key);
+					virtual bool insert_file(const Source::FileInfo& file_info, const Host& host);
 					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info);
 					virtual bool synchronize_host(const Host& host);
 					virtual bool synchronize_key(const Key &key);

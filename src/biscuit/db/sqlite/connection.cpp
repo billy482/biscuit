@@ -58,6 +58,33 @@ bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_a
 	return ret == SQLITE_ROW;
 }
 
+bool SqliteConnection::insert_file(const Source::FileInfo& file_info, const Host& host) {
+	sqlite3_stmt * statement = nullptr;
+	const char * query = "SELECT * FROM files WHERE path = $1 AND host = (SELECT id FROM hosts WHERE hostname = $2)";
+	int ret = sqlite3_prepare(this->m_connection, query, strlen(query), &statement, nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return false;
+	}
+
+	QByteArray path = file_info.path().toUtf8();
+	ret = sqlite3_bind_text(statement, 1, path, path.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_text(statement, 1, host.hostname().toUtf8(), host.hostname().length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return false;
+	}
+
+}
+
 bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info) {
 	sqlite3_stmt * statement = nullptr;
 	const char * query = "SELECT * FROM files WHERE path = $1 AND last_modified >= $2";
