@@ -16,11 +16,12 @@ namespace Biscuit {
 					virtual ~SqliteConnection();
 
 					virtual bool connected();
-					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const Key& key);
-					virtual bool insert_file(const Source::FileInfo& file_info, const Host& host);
-					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info);
-					virtual bool synchronize_host(const Host& host);
-					virtual bool synchronize_key(const Key &key);
+					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
+					virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host);
+					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id);
+					virtual BackupId start_backup();
+					virtual HostId synchronize_host(const Host& host);
+					virtual KeyId synchronize_key(const Key &key);
 
 				private:
 					void print_error();
