@@ -85,18 +85,18 @@ void Backup::run() {
 		const Host& host = source->host();
 		Db::HostId host_id = connection->synchronize_host(host);
 		if (host_id.status() != Db::SqlStatus::has_result) {
-			logger->error("Backup: failed to synchronize host: {}", host.hostname().toLocal8Bit().data());
+			logger->error("Backup: failed to synchronize host: {}", host.hostname().toUtf8().data());
 			continue;
 		}
 
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
-			logger->debug("Backup: checking file: {}", file_info.path().toLocal8Bit().data());
+			logger->debug("Backup: checking file: {}", file_info.path().toUtf8().data());
 
 			if (file_info.is_file()) {
 				if (connection->is_newer_or_not_exists(file_info, host_id)) {
 					Db::FileId file_id = connection->insert_file(file_info, host_id);
 					if (file_id.is_error()) {
-						logger->error("Backup: error while inserting file: {}", file_info.path().toLocal8Bit().data());
+						logger->error("Backup: error while inserting file: {}", file_info.path().toUtf8().data());
 						continue;
 					}
 

@@ -2,6 +2,7 @@
 #define __BISCUIT_DB_CONNECTION_HPP__
 
 #include "backup-id.hpp"
+#include "block-id.hpp"
 #include "file-id.hpp"
 #include "host-id.hpp"
 #include "key-id.hpp"
@@ -32,6 +33,7 @@ namespace Biscuit {
 				inline const Driver& driver() const {
 					return this->m_driver;
 				}
+				virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host) = 0;
 				virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id) = 0;

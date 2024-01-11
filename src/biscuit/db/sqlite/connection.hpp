@@ -16,6 +16,7 @@ namespace Biscuit {
 					virtual ~SqliteConnection();
 
 					virtual bool connected();
+					virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
 					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
 					virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host);
 					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id);

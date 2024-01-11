@@ -21,6 +21,64 @@ bool SqliteConnection::connected() {
 	return true;
 }
 
+Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
+	sqlite3_stmt * statement = nullptr;
+	const char * query = "SELECT id FROM blocks WHERE hash_algo = $1 AND hash = unhex($2) AND key = $3 LIMIT 1";
+	int ret = sqlite3_prepare(this->m_connection, query, strlen(query), &statement, nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	QByteArray raw_digest = hash_algo.toUtf8();
+	ret = sqlite3_bind_text(statement, 1, raw_digest.data(), raw_digest.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	ret = sqlite3_bind_text(statement, 2, digest.data(), digest.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	bool ok;
+	int key_id = key.value().toInt(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	ret = sqlite3_bind_int(statement, 3, key_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	} else if (ret == SQLITE_OK) {
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::not_found);
+	} else if (ret == SQLITE_ROW) {
+		int64_t block_id = sqlite3_column_int64(statement, 0);
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::has_result, QVariant(static_cast<qint64>(block_id)));
+	} else {
+		sqlite3_finalize(statement);
+		return BlockId(SqlStatus::error);
+	}
+}
+
 bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
 	const char * query = "SELECT id FROM block WHERE hash_algo = $1 AND hash = unhex($2) AND key = $3 LIMIT 1";
 
