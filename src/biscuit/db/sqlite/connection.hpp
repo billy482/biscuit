@@ -3,7 +3,10 @@
 
 #include "../connection.hpp"
 
+#include <QtCore/QHash>
+
 typedef struct sqlite3 sqlite3;
+typedef struct sqlite3_stmt sqlite3_stmt;
 
 namespace Biscuit {
 	namespace Db {
@@ -25,9 +28,11 @@ namespace Biscuit {
 					virtual KeyId synchronize_key(const Key &key);
 
 				private:
+					sqlite3_stmt * prepare_query(const QString& query_name, const QString& query);
 					void print_error();
 
 					sqlite3 * m_connection;
+					QHash<QString, sqlite3_stmt *> m_prepared_statement;
 			};
 		}
 	}
