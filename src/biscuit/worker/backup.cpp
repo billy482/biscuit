@@ -80,7 +80,13 @@ void Backup::run() {
 		return;
 	}
 
-	// Key& key = Key::get();
+	Key& key = Key::get();
+	Db::KeyId key_id = connection->synchronize_key(key);
+	if (key_id.is_error()) {
+		logger->critical("Backup: error while synchronizing key");
+		return;
+	}
+
 	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
 		const Host& host = source->host();
 		Db::HostId host_id = connection->synchronize_host(host);
@@ -118,17 +124,42 @@ void Backup::run() {
 
 						// find block into db and insert it if not found then retrieve its id
 						static const QString hash_algo = "sha1";
-						/*if (not connection->has_block(digest, hash_algo, key)) {
+						Db::BlockId block_id = connection->get_block(digest, hash_algo, key_id);
+						if (block_id.is_error()) {
+							logger->error("Backup: error get block: #{} {}", sequence, digest.toBase64().data());
 
-						}*/
+							l.lock();
+							cache.remove(digest);
+							w.notify_all();
+							l.unlock();
+
+							break;
+						} else if (block_id.status() == Db::SqlStatus::not_found) {
+							QByteArray encrypted = key.encrypt(buffer);
+							block_id = connection->insert_block(encrypted, digest, hash_algo, key_id);
+							if (block_id.is_error()) {
+								logger->error("Backup: error get block: #{} {}", sequence, digest.toBase64().data());
+
+								l.lock();
+								cache.remove(digest);
+								w.notify_all();
+								l.unlock();
+
+								break;
+							}
+						}
 
 						l.lock();
 						cache.remove(digest);
 						w.notify_all();
 						l.unlock();
 
-						buffer = file_stream->read(4096);
+						if (not connection->link_file_to_block(file_id, block_id, sequence)) {
+							logger->error("Backup: error while linking file to block: #{}", sequence);
+							break;
+						}
 
+						buffer = file_stream->read(4096);
 					}
 
 					delete file_stream;

@@ -35,8 +35,10 @@ namespace Biscuit {
 				}
 				virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
+				virtual BlockId insert_block(const QByteArray& block, const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host) = 0;
 				virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id) = 0;
+				virtual bool link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence) = 0;
 				virtual BackupId start_backup() = 0;
 				virtual HostId synchronize_host(const Host& host) = 0;
 				virtual KeyId synchronize_key(const Key& key) = 0;

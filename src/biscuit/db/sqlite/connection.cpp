@@ -35,7 +35,8 @@ Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const
 		return BlockId(SqlStatus::error);
 	}
 
-	ret = sqlite3_bind_text(statement, 2, digest.data(), digest.length(), nullptr);
+	QByteArray hex_data = digest.toHex();
+	ret = sqlite3_bind_text(statement, 2, hex_data.data(), hex_data.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
 		sqlite3_reset(statement);
@@ -120,6 +121,65 @@ bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_a
 	}
 }
 
+Biscuit::Db::BlockId SqliteConnection::insert_block(const QByteArray& data, const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
+	sqlite3_stmt * statement = this->prepare_query("insert_block", "INSERT INTO blocks(hash_algo, hash, data, key) VALUES (unhex($1), unhex($2), $3, $4) RETURNING id");
+	if (statement == nullptr)
+		return BlockId(SqlStatus::error);
+
+	QByteArray b_hash_algo = hash_algo.toUtf8();
+	int ret = sqlite3_bind_text(statement, 1, b_hash_algo.data(), b_hash_algo.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	QByteArray hex_hash = digest.toHex();
+	ret = sqlite3_bind_text(statement, 2, hex_hash.data(), hex_hash.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	QByteArray hex_data = data.toHex();
+	ret = sqlite3_bind_text(statement, 3, hex_data.data(), hex_data.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	bool ok;
+	int key_id = key.value().toInt(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	ret = sqlite3_bind_int(statement, 4, key_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	} else if (ret == SQLITE_ROW) {
+		int64_t block_id = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::has_result, QVariant(static_cast<qint64>(block_id)));
+	} else {
+		sqlite3_reset(statement);
+		return BlockId(SqlStatus::error);
+	}
+}
+
 Biscuit::Db::FileId SqliteConnection::insert_file(const Source::FileInfo& file_info, const HostId& host) {
 	sqlite3_stmt * statement = this->prepare_query("insert_file", "INSERT INTO files(path, host) VALUES ($1, $2) RETURNING id");
 	if (statement == nullptr)
@@ -198,6 +258,58 @@ bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info,
 		this->print_error();
 	sqlite3_reset(statement);
 	return ret == SQLITE_DONE;
+}
+
+bool SqliteConnection::link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence) {
+	sqlite3_stmt * statement = this->prepare_query("link_file_to_block", "INSERT INTO files2blocks VALUES ($1, $2, $3)");
+	if (statement == nullptr)
+		return false;
+
+	bool ok;
+	int64_t int_file_id = file_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int ret = sqlite3_bind_int64(statement, 1, int_file_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int64_t int_block_id = block_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_int64(statement, 2, int_block_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_int(statement, 2, sequence);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	sqlite3_reset(statement);
+	return true;
 }
 
 sqlite3_stmt * SqliteConnection::prepare_query(const QString& query_name, const QString& query) {

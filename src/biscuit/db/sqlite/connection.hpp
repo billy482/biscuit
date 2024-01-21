@@ -21,8 +21,10 @@ namespace Biscuit {
 					virtual bool connected();
 					virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
 					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
+					virtual BlockId insert_block(const QByteArray& block, const QByteArray& digest, const QString& hash_algo, const KeyId& key);
 					virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host);
 					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id);
+					virtual bool link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence);
 					virtual BackupId start_backup();
 					virtual HostId synchronize_host(const Host& host);
 					virtual KeyId synchronize_key(const Key &key);
