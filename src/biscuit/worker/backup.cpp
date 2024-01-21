@@ -136,4 +136,6 @@ void Backup::run() {
 			}
 		}
 	}
+
+	delete connection;
 }

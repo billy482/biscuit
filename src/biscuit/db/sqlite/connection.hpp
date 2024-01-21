@@ -1,12 +1,12 @@
 #ifndef __BISCUIT_DB_SQLITE_CONNECTION_HPP__
 #define __BISCUIT_DB_SQLITE_CONNECTION_HPP__
 
+#include "query.hpp"
 #include "../connection.hpp"
 
 #include <QtCore/QHash>
 
 typedef struct sqlite3 sqlite3;
-typedef struct sqlite3_stmt sqlite3_stmt;
 
 namespace Biscuit {
 	namespace Db {
@@ -32,7 +32,7 @@ namespace Biscuit {
 					void print_error();
 
 					sqlite3 * m_connection;
-					QHash<QString, sqlite3_stmt *> m_prepared_statement;
+					QHash<QString, SqliteQuery> m_prepared_statement;
 			};
 		}
 	}

@@ -12,12 +12,9 @@ using namespace Biscuit::Db::Sqlite;
 SqliteConnection::SqliteConnection(SqliteDriver& driver, sqlite3 * connection) : Connection(driver), m_connection(connection) {}
 
 SqliteConnection::~SqliteConnection() {
+	this->m_prepared_statement.clear();
 	sqlite3_close_v2(this->m_connection);
 	this->m_connection = nullptr;
-
-	for (QHash<QString, sqlite3_stmt *>::iterator iter = this->m_prepared_statement.begin(); iter != this->m_prepared_statement.end(); iter++)
-		sqlite3_finalize(iter.value());
-	this->m_prepared_statement.clear();
 }
 
 
@@ -34,12 +31,14 @@ Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const
 	int ret = sqlite3_bind_text(statement, 1, raw_digest.data(), raw_digest.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
 	}
 
 	ret = sqlite3_bind_text(statement, 2, digest.data(), digest.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
 	}
 
@@ -47,26 +46,33 @@ Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const
 	int key_id = key.value().toInt(&ok);
 	if (not ok) {
 		this->print_error();
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
 	}
 
 	ret = sqlite3_bind_int(statement, 3, key_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
-	} else if (ret == SQLITE_OK)
+	} else if (ret == SQLITE_OK) {
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::not_found);
-	else if (ret == SQLITE_ROW) {
+	} else if (ret == SQLITE_ROW) {
 		int64_t block_id = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::has_result, QVariant(static_cast<qint64>(block_id)));
-	} else
+	} else {
+		sqlite3_reset(statement);
 		return BlockId(SqlStatus::error);
+	}
 }
 
 bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
@@ -77,14 +83,14 @@ bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_a
 	int ret = sqlite3_bind_text(statement, 1, digest.data(), digest.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
 	ret = sqlite3_bind_text(statement, 2, hash_algo.toUtf8(), hash_algo.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
@@ -92,24 +98,26 @@ bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_a
 	int key_id = key.value().toInt(&ok);
 	if (not ok) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
 	ret = sqlite3_bind_int(statement, 3, key_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
-	} else
+	} else {
+		sqlite3_reset(statement);
 		return ret == SQLITE_ROW;
+	}
 }
 
 Biscuit::Db::FileId SqliteConnection::insert_file(const Source::FileInfo& file_info, const HostId& host) {
@@ -121,7 +129,7 @@ Biscuit::Db::FileId SqliteConnection::insert_file(const Source::FileInfo& file_i
 	int ret = sqlite3_bind_text(statement, 1, path, path.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return FileId(SqlStatus::error);
 	}
 
@@ -129,26 +137,25 @@ Biscuit::Db::FileId SqliteConnection::insert_file(const Source::FileInfo& file_i
 	int host_id = host.value().toInt(&ok);
 	if (not ok) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return FileId(SqlStatus::error);
 	}
 	ret = sqlite3_bind_int(statement, 2, host_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return FileId(SqlStatus::error);
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return FileId(SqlStatus::error);
 	}
 
 	int64_t file_id = sqlite3_column_int64(statement, 0);
-	sqlite3_finalize(statement);
-
+	sqlite3_reset(statement);
 	return FileId(SqlStatus::has_result, QVariant(static_cast<qint64>(file_id)));
 }
 
@@ -158,17 +165,17 @@ bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info,
 		return false;
 
 	QByteArray path = file_info.path().toUtf8();
-	int ret = sqlite3_bind_text(statement, 1, path, path.length(), nullptr);
+	int ret = sqlite3_bind_text(statement, 1, path.data(), path.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
 	ret = sqlite3_bind_int64(statement, 2, file_info.modified_time().currentSecsSinceEpoch());
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
@@ -176,42 +183,38 @@ bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info,
 	int host_id = host.value().toInt(&ok);
 	if (not ok) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 	ret = sqlite3_bind_int(statement, 3, host_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return false;
 	}
 
 	ret = sqlite3_step(statement);
-	sqlite3_finalize(statement);
+	if (ret == SQLITE_ERROR)
+		this->print_error();
+	sqlite3_reset(statement);
 	return ret == SQLITE_DONE;
 }
 
 sqlite3_stmt * SqliteConnection::prepare_query(const QString& query_name, const QString& query) {
-	sqlite3_stmt * statement = nullptr;
-
-	QHash<QString, sqlite3_stmt *>::iterator iter = this->m_prepared_statement.find(query_name);
+	QHash<QString, SqliteQuery>::iterator iter = this->m_prepared_statement.find(query_name);
 	if (iter == this->m_prepared_statement.end()) {
-		QByteArray raw_query = query.toUtf8();
-		int ret = sqlite3_prepare(this->m_connection, raw_query.data(), raw_query.length(), &statement, nullptr);
-		if (ret == SQLITE_ERROR) {
+		SqliteQuery sqlite_query(query, this->m_connection);
+		if (sqlite_query.has_error()) {
 			this->print_error();
-			sqlite3_finalize(statement);
 			return nullptr;
+		} else {
+			this->m_prepared_statement.insert(query_name, sqlite_query);
+			return this->prepare_query(query_name, query);
 		}
-
-		this->m_prepared_statement[query_name] = statement;
 	} else {
-		statement = iter.value();
-		if (sqlite3_reset(statement) != SQLITE_OK)
-			return nullptr;
+		SqliteQuery& sqlite_query = iter.value();
+		return sqlite_query.statement();
 	}
-
-	return statement;
 }
 
 void SqliteConnection::print_error() {
@@ -220,21 +223,16 @@ void SqliteConnection::print_error() {
 }
 
 Biscuit::Db::BackupId SqliteConnection::start_backup() {
-	sqlite3_stmt * statement = this->prepare_query("start_backup", "SELECT COALESCE(MAX(id), -1) FROM backups WHERE end_time IS NOT NULL");
+	sqlite3_stmt * statement = this->prepare_query("get_last_backup", "SELECT COALESCE(MAX(id), -1) FROM backups WHERE end_time IS NOT NULL");
 	if (statement == nullptr)
 		return BackupId();
 
 	int ret = sqlite3_step(statement);
 	int32_t backup_id = sqlite3_column_int(statement, 0);
-	sqlite3_finalize(statement);
 
-	const char * query_insert = "INSERT INTO backups (parent_backup) VALUES ($1) RETURNING id";
-	ret = sqlite3_prepare(this->m_connection, query_insert, strlen(query_insert), &statement, nullptr);
-	if (ret == SQLITE_ERROR) {
-		this->print_error();
-		sqlite3_finalize(statement);
+	statement = this->prepare_query("start_backup", "INSERT INTO backups (parent_backup) VALUES ($1) RETURNING id");
+	if (statement == nullptr)
 		return BackupId();
-	}
 
 	if (backup_id != -1)
 		ret = sqlite3_bind_int(statement, 0, backup_id);
@@ -242,19 +240,17 @@ Biscuit::Db::BackupId SqliteConnection::start_backup() {
 		ret = sqlite3_bind_null(statement, 0);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
 		return BackupId();
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
 		return BackupId();
 	}
 
 	backup_id = sqlite3_column_int(statement, 0);
-	sqlite3_finalize(statement);
+	sqlite3_reset(statement);
 	return BackupId(SqlStatus::has_result, QVariant(backup_id));
 }
 
@@ -267,39 +263,40 @@ Biscuit::Db::HostId SqliteConnection::synchronize_host(const Host& host) {
 	int ret = sqlite3_bind_text(statement, 1, hostname.data(), hostname.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return HostId();
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ROW) {
 		int32_t host_id = sqlite3_column_int(statement, 0);
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return HostId(SqlStatus::has_result, QVariant(host_id));
-	} else
-		sqlite3_finalize(statement);
+	}
+
+	sqlite3_reset(statement);
 
 
 	statement = this->prepare_query("insert_host", "INSERT INTO hosts(hostname) VALUES ($1) RETURNING id");
 	if (statement == nullptr)
 		return HostId();
 
-	ret = sqlite3_bind_text(statement, 1, host.hostname().toUtf8(), host.hostname().length(), nullptr);
+	ret = sqlite3_bind_text(statement, 1, hostname.data(), hostname.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return HostId();
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return HostId();
 	}
 
 	int32_t host_id = sqlite3_column_int(statement, 0);
-	sqlite3_finalize(statement);
+	sqlite3_reset(statement);
 	return HostId(SqlStatus::has_result, QVariant(host_id));
 }
 
@@ -312,20 +309,20 @@ Biscuit::Db::KeyId SqliteConnection::synchronize_key(const Key& key) {
 	int ret = sqlite3_bind_text(statement, 1, fingerprint.data(), fingerprint.length(), nullptr);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return KeyId();
 	}
 
 	ret = sqlite3_step(statement);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return KeyId();
 	}
 
 	if (ret == SQLITE_ROW) {
 		int key_id = sqlite3_column_int(statement, 0);
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 
 		statement = this->prepare_query("update_host", "UPDATE keys SET last_use = unixepoch() WHERE id = $1");
 		if (statement == nullptr)
@@ -334,22 +331,21 @@ Biscuit::Db::KeyId SqliteConnection::synchronize_key(const Key& key) {
 		ret = sqlite3_bind_int(statement, 1, key_id);
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
-			sqlite3_finalize(statement);
+			sqlite3_reset(statement);
 			return KeyId();
 		}
 
 		ret = sqlite3_step(statement);
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
-			sqlite3_finalize(statement);
+			sqlite3_reset(statement);
 			return KeyId();
 		}
 
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return KeyId(SqlStatus::has_result, QVariant(key_id));
 	} else {
-		sqlite3_finalize(statement);
-
+		sqlite3_reset(statement);
 		statement = this->prepare_query("insert_host", "INSERT INTO keys(fingerprint, hash_algo, length) VALUES ($1, 'sha256', $2) RETURNING id");
 		if (statement == nullptr)
 			return KeyId();
@@ -357,26 +353,26 @@ Biscuit::Db::KeyId SqliteConnection::synchronize_key(const Key& key) {
 		ret = sqlite3_bind_text(statement, 1, fingerprint.data(), fingerprint.length(), nullptr);
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
-			sqlite3_finalize(statement);
+			sqlite3_reset(statement);
 			return KeyId();
 		}
 
 		ret = sqlite3_bind_int(statement, 2, key.key_length());
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
-			sqlite3_finalize(statement);
+			sqlite3_reset(statement);
 			return KeyId();
 		}
 
 		ret = sqlite3_step(statement);
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
-			sqlite3_finalize(statement);
+			sqlite3_reset(statement);
 			return KeyId();
 		}
 
 		int key_id = sqlite3_column_int(statement, 0);
-		sqlite3_finalize(statement);
+		sqlite3_reset(statement);
 		return KeyId(SqlStatus::has_result, QVariant(key_id));
 	}
 }
