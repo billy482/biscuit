@@ -10,7 +10,40 @@ using namespace Biscuit::Db::Sqlite;
 using Biscuit::Db::Connection;
 using YAML::Node;
 
-SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(path) {}
+SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(path) {
+	auto logger = spdlog::get("database");
+	logger->info("Using Sqlite database (version: {})", sqlite3_libversion());
+
+	sqlite3 * connection = nullptr;
+	QByteArray filename = this->m_path.absoluteFilePath().toUtf8();
+	logger->debug("Opening database {}", filename.data());
+	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
+	if (ret != 0) {
+		logger->error("Error while opening database {} because {}", filename.data(), sqlite3_errmsg(connection));
+		sqlite3_close_v2(connection);
+	}
+
+	sqlite3_stmt * statement = nullptr;
+	ret = sqlite3_prepare(connection, "SELECT * FROM configuration", 27, &statement, nullptr);
+	if (ret == SQLITE_ERROR) {
+		sqlite3_finalize(statement);
+
+		logger->info("Creating new database");
+		if (this->create_db(connection))
+			logger->info("Database created");
+		else {
+			logger->error("Error while creating database");
+			sqlite3_close_v2(connection);
+		}
+	}
+
+	this->m_connection = connection;
+}
+
+SqliteDriver::~SqliteDriver() {
+	if (this->m_connection != nullptr)
+		sqlite3_close_v2(this->m_connection);
+}
 
 
 SqliteDriver * SqliteDriver::configure(const Node& node) {
@@ -57,39 +90,8 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 }
 
 Connection * SqliteDriver::open() {
-	auto logger = spdlog::get("database");
-
-	static QMutex l;
-
-	l.lock();
-	sqlite3 * connection = nullptr;
-	QByteArray filename = this->m_path.absoluteFilePath().toUtf8();
-	logger->debug("Opening database {}", filename.data());
-	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
-	if (ret != 0) {
-		logger->error("Error while opening database {} because {}", filename.data(), sqlite3_errmsg(connection));
-		sqlite3_close_v2(connection);
-		l.unlock();
+	if (this->m_connection != nullptr)
+		return new SqliteConnection(*this, this->m_connection);
+	else
 		return nullptr;
-	}
-
-	sqlite3_stmt * statement = nullptr;
-	ret = sqlite3_prepare(connection, "SELECT * FROM configuration", 27, &statement, nullptr);
-	if (ret == SQLITE_ERROR) {
-		sqlite3_finalize(statement);
-
-		logger->info("Creating new database");
-		if (this->create_db(connection))
-			logger->info("Database created");
-		else {
-			logger->error("Error while creating database");
-			sqlite3_close_v2(connection);
-			l.unlock();
-			return nullptr;
-		}
-	}
-
-	l.unlock();
-
-	return new SqliteConnection(*this, connection);
 }

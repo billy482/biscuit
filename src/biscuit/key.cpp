@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <botan/data_src.h>
 #include <botan/pkcs8.h>
 #include <botan/pubkey.h>
@@ -50,7 +51,14 @@ QByteArray Key::decrypt(const QByteArray& block) const {
 
 QByteArray Key::encrypt(const QByteArray& block) const {
 	Botan::PK_Encryptor_EME enc(this->m_private_key ? *this->m_private_key : *this->m_public_key, this->m_rng, "OAEP(SHA-256)");
-	std::vector<uint8_t> encrypted = enc.encrypt(std::vector<uint8_t>(block.begin(), block.end()), this->m_rng);
+	const size_t block_size = enc.maximum_input_size();
+	std::vector<uint8_t> encrypted;
+	for (qsizetype position = 0; position < block.size(); position += block_size) {
+		QByteArray::const_iterator iter_start = block.begin() + position;
+		QByteArray::const_iterator iter_end = iter_start + std::min(block_size, static_cast<size_t>(block.size() - position));
+		std::vector<uint8_t> encrypted_block = enc.encrypt(std::vector<uint8_t>(iter_start, iter_end), this->m_rng);
+		encrypted.insert(encrypted.end(), encrypted_block.begin(), encrypted_block.end());
+	}
 	return QByteArray(reinterpret_cast<const char *>(encrypted.data()), encrypted.size());
 }
 

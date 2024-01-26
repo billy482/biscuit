@@ -12,7 +12,7 @@ namespace Biscuit {
 		namespace Sqlite {
 			class SqliteDriver : public Driver {
 				public:
-					virtual ~SqliteDriver() = default;
+					virtual ~SqliteDriver();
 
 					static SqliteDriver * configure(const YAML::Node& node);
 					virtual Connection * open();
@@ -22,6 +22,7 @@ namespace Biscuit {
 
 					bool create_db(sqlite3 * db);
 
+	 				sqlite3 * m_connection = nullptr;
 					QFileInfo m_path;
 			};
 		}

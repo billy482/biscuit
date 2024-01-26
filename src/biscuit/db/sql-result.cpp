@@ -20,5 +20,5 @@ void SqlResult::copy(const SqlResult& src) {
 
 void SqlResult::move(SqlResult&& src) {
 	this->m_status = src.m_status;
-	this->m_value = std::move(this->m_value);
+	this->m_value = std::move(src.m_value);
 }
