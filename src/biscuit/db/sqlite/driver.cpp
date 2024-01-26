@@ -40,11 +40,13 @@ SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(pat
 	this->m_connection = connection;
 }
 
-SqliteDriver::~SqliteDriver() {
+
+bool SqliteDriver::close() {
 	if (this->m_connection != nullptr)
 		sqlite3_close_v2(this->m_connection);
+	this->m_connection = nullptr;
+	return true;
 }
-
 
 SqliteDriver * SqliteDriver::configure(const Node& node) {
 	const Node& path = node["path"];

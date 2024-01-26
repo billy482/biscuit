@@ -21,6 +21,37 @@ bool SqliteConnection::connected() {
 	return true;
 }
 
+bool SqliteConnection::finish_backup(const BackupId& backup_id) {
+	sqlite3_stmt * statement = this->prepare_query("finish_backup", "UPDATE backups SET end_time = unixepoch() WHERE id = $1");
+	if (statement == nullptr)
+		return false;
+
+	bool ok;
+	int64_t int_backup_id = backup_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int ret = sqlite3_bind_int64(statement, 1, int_backup_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	sqlite3_reset(statement);
+	return true;
+}
+
 Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
 	sqlite3_stmt * statement = this->prepare_query("get_block", "SELECT id FROM blocks WHERE hash_algo = $1 AND hash = unhex($2) AND key = $3 LIMIT 1");
 	if (statement == nullptr)

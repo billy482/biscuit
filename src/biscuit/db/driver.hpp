@@ -15,6 +15,7 @@ namespace Biscuit {
 			public:
 				virtual ~Driver();
 
+				virtual bool close() = 0;
 				static bool configure(const YAML::Node& node);
 				static Driver * get();
 				inline const QString& name() const {

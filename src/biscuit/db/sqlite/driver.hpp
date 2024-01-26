@@ -12,8 +12,9 @@ namespace Biscuit {
 		namespace Sqlite {
 			class SqliteDriver : public Driver {
 				public:
-					virtual ~SqliteDriver();
+					virtual ~SqliteDriver() = default;
 
+					virtual bool close();
 					static SqliteDriver * configure(const YAML::Node& node);
 					virtual Connection * open();
 

@@ -58,9 +58,16 @@ int Backup::do_backup(const YAML::Node&) {
 	if (backup_id.status() == Db::SqlStatus::has_result) {
 		Backup backup(backup_id);
 		backup.run();
-	}
+
+		if (connection->finish_backup(backup_id))
+			logger->info("Backup completed");
+		else
+			logger->error("Error while finishing backup");
+	} else
+		logger->error("Error while starting backup");
 
 	delete connection;
+	driver->close();
 
 	return 0;
 }

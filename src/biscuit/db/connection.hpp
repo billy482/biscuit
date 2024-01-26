@@ -33,6 +33,7 @@ namespace Biscuit {
 				inline const Driver& driver() const {
 					return this->m_driver;
 				}
+				virtual bool finish_backup(const BackupId& backup_id) = 0;
 				virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual BlockId insert_block(const QByteArray& block, const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
