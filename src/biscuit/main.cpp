@@ -41,6 +41,7 @@
 #include "db/connection.hpp"
 #include "db/driver.hpp"
 #include "key.hpp"
+#include "options.hpp"
 #include "source/source.hpp"
 #include "worker/backup.hpp"
 
@@ -50,7 +51,9 @@ namespace Biscuit {
 	spdlog::level::level_enum find_log_level(const std::string& level);
 	modes parse_arg(int argc, char * argv[]);
 
-	YAML::Node configuration;
+	static YAML::Node configuration;
+
+	static struct Option options;
 }
 
 
@@ -90,9 +93,10 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 	modes mode = modes::backup;
 
 	auto backup = (
-		"backup options" % in_sequence(
+		"backup options" % (
 			command("backup").set(mode, modes::backup),
-			option("-h", "--help").set(mode, modes::help) % "Show help"
+			option("-h", "--help").set(mode, modes::help) % "Show help",
+			option("-p", "--progress").set(options.progress) % "Display progression"
 		)
 	);
 
@@ -101,7 +105,7 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 	);
 
 	auto restore = (
-		"restore options" % in_sequence(
+		"restore options" % (
 			command("restore").set(mode, modes::restore),
 			option("-h", "--help").set(mode, modes::help) % "Show help"
 		)
@@ -192,7 +196,7 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 int main(int argc, char * argv[]) {
 	switch (Biscuit::parse_arg(argc, argv)) {
 		case Biscuit::modes::backup:
-			return Biscuit::Worker::Backup::do_backup(Biscuit::configuration);
+			return Biscuit::Worker::Backup::do_backup(Biscuit::configuration, Biscuit::options);
 
 		case Biscuit::modes::exit:
 			return 1;

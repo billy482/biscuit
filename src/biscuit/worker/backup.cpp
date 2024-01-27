@@ -33,7 +33,9 @@
 #include <QtCore/QCryptographicHash>
 #include <QtCore/QHash>
 #include <QtCore/QIODevice>
-#include <QtCore/QMutex>
+#include <QtCore/QList>
+#include <QtCore/QTextStream>
+#include <QtCore/QThreadPool>
 #include <QtCore/QWaitCondition>
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
@@ -43,6 +45,7 @@
 #include "../db/driver.hpp"
 #include "../host.hpp"
 #include "../key.hpp"
+#include "../options.hpp"
 #include "../source/file-info.hpp"
 #include "../source/source.hpp"
 
@@ -57,8 +60,12 @@ Backup::Backup(const Db::BackupId& backup_id) : QRunnable(), m_backup_id(backup_
 	this->setAutoDelete(false);
 }
 
+Backup::Backup(const Backup& backup) : QRunnable(), m_backup_id(backup.m_backup_id) {
+	this->setAutoDelete(false);
+}
 
-int Backup::do_backup(const YAML::Node&) {
+
+int Backup::do_backup(const YAML::Node&, const struct Option& options) {
 	// TODO: use a thread pool
 	auto logger = spdlog::get("core");
 
@@ -88,8 +95,36 @@ int Backup::do_backup(const YAML::Node&) {
 	
 	Db::BackupId backup_id = connection->start_backup();
 	if (backup_id.is_found()) {
-		Backup backup(backup_id);
-		backup.run();
+		QThreadPool pool;
+
+		const int nb_workers = pool.maxThreadCount();
+		QList<Backup> workers(nb_workers, Backup(backup_id));
+		for (Backup& worker : workers)
+			pool.start(&worker);
+
+		if (options.progress) {
+			bool displayed = false;
+			QTextStream console(stdout);
+			while (not pool.waitForDone(1000)) {
+				if (displayed)
+					console << "\x1b[0G\x1b[" << nb_workers << "A\x1b[K\x1b[0J";
+				else
+					displayed = true;
+
+				for (int i = 0; i < nb_workers; i++) {
+					Backup& worker = workers[i];
+					worker.m_lock.lock();
+					console << "#" << i + 1 << ": " << worker.m_current_path;
+					if (worker.m_current_size > 0)
+						console << ", " << worker.m_current_position << " / " << worker.m_current_size << " = " << QString::number(worker.m_current_position / worker.m_current_size, 'f', 2) << "%";
+					console << Qt::endl;
+					worker.m_lock.unlock();
+				}
+			}
+
+			console << "\x1b[0G\x1b[" << nb_workers << "A\x1b[K\x1b[0J";
+		} else
+			pool.waitForDone();
 
 		if (connection->finish_backup(backup_id))
 			logger->info("Backup completed");
@@ -137,6 +172,12 @@ void Backup::run() {
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
 			logger->debug("Backup: checking file: {}", file_info.path().toUtf8().data());
 
+			this->m_lock.lock();
+			this->m_current_path = file_info.path();
+			this->m_current_position = 0;
+			this->m_current_size = 0;
+			this->m_lock.unlock();
+
 			Db::FileId file_id;
 			if (file_info.is_file()) {
 				if (connection->is_newer_or_not_exists(file_info, host_id)) {
@@ -146,10 +187,19 @@ void Backup::run() {
 						continue;
 					}
 
+					this->m_lock.lock();
+					this->m_current_position = 0;
+					this->m_current_size = file_info.file_size();
+					this->m_lock.unlock();
+
 					QIODevice * file_stream = source->open(file_info);
 
 					QByteArray buffer = file_stream->read(4096);
 					for (quint32 sequence = 0; buffer.size() > 0; sequence++) {
+						this->m_lock.lock();
+						this->m_current_position += buffer.size();
+						this->m_lock.unlock();
+
 						QByteArray digest = QCryptographicHash::hash(buffer, QCryptographicHash::Sha1);
 
 						static QHash<QByteArray, QByteArray> cache;

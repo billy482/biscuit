@@ -30,41 +30,13 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_WORKER_BACKUP_HPP__
-#define __BISCUIT_WORKER_BACKUP_HPP__
-
-#include <QtCore/QMutex>
-#include <QtCore/QRunnable>
-#include <QtCore/QString>
-
-namespace YAML {
-	class Node;
-}
+#ifndef __BISCUIT_OPTION_HPP__
+#define __BISCUIT_OPTION_HPP__
 
 namespace Biscuit {
-	namespace Db {
-		class BackupId;
-	}
-	struct Option;
-
-	namespace Worker {
-		class Backup : public QRunnable {
-			public:
-				Backup(const Db::BackupId& backup_id);
-				Backup(const Backup& backup);
-				virtual ~Backup() = default;
-
-				static int do_backup(const YAML::Node& config, const struct Option& options);
-				virtual void run();
-
-			private:
-				const Db::BackupId& m_backup_id;
-				QMutex m_lock;
-				QString m_current_path;
-				uint64_t m_current_position = 0;
-				uint64_t m_current_size = 0;
-		};
-	}
+	struct Option {
+		bool progress = false;
+	};
 }
 
 #endif
