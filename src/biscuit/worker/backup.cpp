@@ -55,7 +55,7 @@ int Backup::do_backup(const YAML::Node&) {
 	}
 	
 	Db::BackupId backup_id = connection->start_backup();
-	if (backup_id.status() == Db::SqlStatus::has_result) {
+	if (backup_id.is_found()) {
 		Backup backup(backup_id);
 		backup.run();
 
@@ -97,7 +97,7 @@ void Backup::run() {
 	for (Source::Source * source = Source::Source::first_source(); source != nullptr; source = source->next_source()) {
 		const Host& host = source->host();
 		Db::HostId host_id = connection->synchronize_host(host);
-		if (host_id.status() != Db::SqlStatus::has_result) {
+		if (host_id.is_error()) {
 			logger->error("Backup: failed to synchronize host: {}", host.hostname().toUtf8().data());
 			continue;
 		}
@@ -105,9 +105,10 @@ void Backup::run() {
 		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
 			logger->debug("Backup: checking file: {}", file_info.path().toUtf8().data());
 
+			Db::FileId file_id;
 			if (file_info.is_file()) {
 				if (connection->is_newer_or_not_exists(file_info, host_id)) {
-					Db::FileId file_id = connection->insert_file(file_info, host_id);
+					file_id = connection->insert_file(file_info, host_id);
 					if (file_id.is_error()) {
 						logger->error("Backup: error while inserting file: {}", file_info.path().toUtf8().data());
 						continue;
@@ -141,7 +142,7 @@ void Backup::run() {
 							l.unlock();
 
 							break;
-						} else if (block_id.status() == Db::SqlStatus::not_found) {
+						} else if (not block_id.is_found()) {
 							QByteArray encrypted = key.encrypt(buffer);
 							block_id = connection->insert_block(encrypted, digest, hash_algo, key_id);
 							if (block_id.is_error()) {
@@ -171,7 +172,39 @@ void Backup::run() {
 
 					delete file_stream;
 				}
+			} else if (file_info.is_dir()) {
+				file_id = connection->get_file(file_info, host_id);
+				if (file_id.is_error()) {
+					logger->error("Backup: error while getting directory: {}", file_info.path().toUtf8().data());
+					continue;
+				} else if (not file_id.is_found()) {
+					file_id = connection->insert_file(file_info, host_id);
+					if (file_id.is_error()) {
+						logger->error("Backup: error while inserting directory: {}", file_info.path().toUtf8().data());
+						continue;
+					}
+				}
+
+			} else
+				continue;
+
+
+			QByteArray metadata = file_info.metadata().toJson(QJsonDocument::Compact);
+			QByteArray digest = QCryptographicHash::hash(metadata, QCryptographicHash::Sha1);
+			Db::MetadataId metadata_id = connection->get_metadata(digest, "sha1");
+			if (metadata_id.is_error()) {
+				logger->error("Backup: error while getting metadata: {}", file_info.path().toUtf8().data());
+				continue;
+			} else if (not metadata_id.is_found()) {
+				metadata_id = connection->insert_metadata(metadata, digest, "sha1");
+				if (metadata_id.is_error()) {
+					logger->error("Backup: error while getting metadata: {}", file_info.path().toUtf8().data());
+					continue;
+				}
 			}
+
+			if (not connection->link_file_to_backup(file_id, m_backup_id, metadata_id))
+				logger->error("Backup: error linking file to backup: {}", file_info.path().toUtf8().data());
 		}
 	}
 

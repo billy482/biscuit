@@ -22,4 +22,3 @@ KeyId& KeyId::operator=(KeyId&& key_id) {
 	this->move(std::move(key_id));
 	return *this;
 }
-

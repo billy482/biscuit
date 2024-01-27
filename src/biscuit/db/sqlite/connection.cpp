@@ -106,6 +106,90 @@ Biscuit::Db::BlockId SqliteConnection::get_block(const QByteArray& digest, const
 	}
 }
 
+Biscuit::Db::FileId SqliteConnection::get_file(const Source::FileInfo& file_info, const HostId& host) {
+	sqlite3_stmt * statement = this->prepare_query("get_file", "SELECT id FROM files WHERE path = $1 AND host = $2 LIMIT 1");
+	if (statement == nullptr)
+		return FileId(SqlStatus::error);
+
+	QByteArray path = file_info.path().toUtf8();
+	int ret = sqlite3_bind_text(statement, 1, path.data(), path.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::error);
+	}
+
+	bool ok;
+	int host_id = host.value().toInt(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::error);
+	}
+	ret = sqlite3_bind_int(statement, 2, host_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::error);
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::error);
+	} else if (ret == SQLITE_OK or ret == SQLITE_DONE) {
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::not_found);
+	} else if (ret == SQLITE_ROW) {
+		int64_t file_id = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::has_result, QVariant(static_cast<qint64>(file_id)));
+	} else {
+		sqlite3_reset(statement);
+		return FileId(SqlStatus::error);
+	}
+}
+
+Biscuit::Db::MetadataId SqliteConnection::get_metadata(const QByteArray& digest, const QString& hash_algo) {
+	sqlite3_stmt * statement = this->prepare_query("get_metadata", "SELECT id FROM metadata WHERE hash_algo = $1 AND hash = unhex($2) LIMIT 1");
+	if (statement == nullptr)
+		return MetadataId(SqlStatus::error);
+
+	QByteArray raw_digest = hash_algo.toUtf8();
+	int ret = sqlite3_bind_text(statement, 1, raw_digest.data(), raw_digest.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+
+	QByteArray hex_data = digest.toHex();
+	ret = sqlite3_bind_text(statement, 2, hex_data.data(), hex_data.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	} else if (ret == SQLITE_OK or ret == SQLITE_DONE) {
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::not_found);
+	} else if (ret == SQLITE_ROW) {
+		int64_t metadata_id = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::has_result, QVariant(static_cast<qint64>(metadata_id)));
+	} else {
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+}
+
 bool SqliteConnection::has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) {
 	sqlite3_stmt * statement = this->prepare_query("get_block", "SELECT id FROM blocks WHERE hash_algo = $1 AND hash = unhex($2) AND key = $3 LIMIT 1");
 	if (statement == nullptr)
@@ -252,6 +336,50 @@ Biscuit::Db::FileId SqliteConnection::insert_file(const Source::FileInfo& file_i
 	}
 }
 
+Biscuit::Db::MetadataId SqliteConnection::insert_metadata(const QByteArray& data, const QByteArray& digest, const QString& hash_algo) {
+	sqlite3_stmt * statement = this->prepare_query("insert_metadata", "INSERT INTO metadata(hash_algo, hash, data) VALUES ($1, unhex($2), unhex($3)) RETURNING id");
+	if (statement == nullptr)
+		return MetadataId(SqlStatus::error);
+
+	QByteArray b_hash_algo = hash_algo.toUtf8();
+	int ret = sqlite3_bind_text(statement, 1, b_hash_algo.data(), b_hash_algo.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+
+	QByteArray hex_hash = digest.toHex();
+	ret = sqlite3_bind_blob(statement, 2, hex_hash.data(), hex_hash.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+
+	QByteArray hex_data = data.toHex();
+	ret = sqlite3_bind_blob(statement, 3, hex_data.data(), hex_data.length(), nullptr);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::error);
+	} else if (ret == SQLITE_ROW) {
+		int64_t metadata_id = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::has_result, QVariant(static_cast<qint64>(metadata_id)));
+	} else {
+		sqlite3_reset(statement);
+		return MetadataId(SqlStatus::not_found);
+	}
+}
+
 bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host) {
 	sqlite3_stmt * statement = this->prepare_query("is_newer_or_not_exists", "SELECT * FROM files WHERE path = $1 AND last_modified >= $2 AND host = $3");
 	if (statement == nullptr)
@@ -291,6 +419,65 @@ bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info,
 		this->print_error();
 	sqlite3_reset(statement);
 	return ret == SQLITE_DONE;
+}
+
+bool SqliteConnection::link_file_to_backup(const FileId& file_id, const BackupId& backup_id, const MetadataId& metadata_id) {
+	sqlite3_stmt * statement = this->prepare_query("link_file_to_backup", "INSERT INTO backups2files VALUES ($1, $2, $3)");
+	if (statement == nullptr)
+		return false;
+
+	bool ok;
+	int64_t int_backup_id = backup_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int ret = sqlite3_bind_int64(statement, 1, int_backup_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int64_t int_file_id = file_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_int64(statement, 2, int_file_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int64_t int_metadata_id = metadata_id.value().toLongLong(&ok);
+	if (not ok) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_int64(statement, 3, int_metadata_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	sqlite3_reset(statement);
+	return true;
 }
 
 bool SqliteConnection::link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence) {

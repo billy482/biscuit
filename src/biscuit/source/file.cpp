@@ -1,6 +1,8 @@
 #include <spdlog/spdlog.h>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <yaml-cpp/yaml.h>
 
 #include "file.hpp"
@@ -46,6 +48,21 @@ File * File::configure(const QString& path, const Node& node) {
 	}
 
 	return new_file;
+}
+
+QJsonDocument File::get_metadata(const QFileInfo& file_info) {
+	QJsonObject md_common;
+	md_common.insert("size", QJsonValue(file_info.size()));
+
+	QJsonObject md_unix;
+	md_unix.insert("owner", QJsonValue(file_info.owner()));
+	md_unix.insert("group", QJsonValue(file_info.group()));
+
+	QJsonObject metadata;
+	metadata.insert("common", md_common);
+	metadata.insert("unix", md_unix);
+
+	return QJsonDocument(metadata);
 }
 
 Biscuit::Host& File::host() {
@@ -138,7 +155,8 @@ FileInfo File::next() {
 			this->m_paths.push(QDir(file.absoluteFilePath()).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware));
 
 		this->m_lock.unlock();
-		return FileInfo(file);
+
+		return FileInfo(file, this->get_metadata(file));
 	}
 
 	this->m_lock.unlock();

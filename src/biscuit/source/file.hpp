@@ -10,6 +10,8 @@
 #include "source.hpp"
 #include "../host.hpp"
 
+class QJsonDocument;
+
 namespace Biscuit {
 	namespace Source {
 		class File : public Source {
@@ -22,6 +24,8 @@ namespace Biscuit {
 
 			private:
 				File(const QString& path);
+
+				QJsonDocument get_metadata(const QFileInfo& info);
 
 				Host m_host;
 				QMutex m_lock;

@@ -16,6 +16,9 @@ namespace Biscuit {
 				inline bool is_error() const {
 					return this->m_status == SqlStatus::error;
 				}
+				inline bool is_found() const {
+					return this->m_status == SqlStatus::has_result;
+				}
 				inline SqlStatus status() const {
 					return this->m_status;
 				}

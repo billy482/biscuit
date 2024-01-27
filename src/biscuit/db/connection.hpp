@@ -6,6 +6,7 @@
 #include "file-id.hpp"
 #include "host-id.hpp"
 #include "key-id.hpp"
+#include "metadata-id.hpp"
 #include "sql-result.hpp"
 
 class QByteArray;
@@ -35,10 +36,14 @@ namespace Biscuit {
 				}
 				virtual bool finish_backup(const BackupId& backup_id) = 0;
 				virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
+				virtual FileId get_file(const Source::FileInfo& file_info, const HostId& host) = 0;
+				virtual MetadataId get_metadata(const QByteArray& digest, const QString& hash_algo) = 0;
 				virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual BlockId insert_block(const QByteArray& block, const QByteArray& digest, const QString& hash_algo, const KeyId& key) = 0;
 				virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host) = 0;
+				virtual MetadataId insert_metadata(const QByteArray& data, const QByteArray& digest, const QString& hash_algo) = 0;
 				virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id) = 0;
+				virtual bool link_file_to_backup(const FileId& file_id, const BackupId& backup_id, const MetadataId& metadata_id) = 0;
 				virtual bool link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence) = 0;
 				virtual BackupId start_backup() = 0;
 				virtual HostId synchronize_host(const Host& host) = 0;
