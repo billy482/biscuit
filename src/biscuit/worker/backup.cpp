@@ -56,6 +56,9 @@ using Biscuit::Source::Source;
 using DbConnection = Biscuit::Db::Connection;
 using DbDriver = Biscuit::Db::Driver;
 
+uint16_t Backup::ms_block_size = 1024;
+
+
 Backup::Backup(const Db::BackupId& backup_id) : QRunnable(), m_backup_id(backup_id) {
 	this->setAutoDelete(false);
 }
@@ -65,8 +68,23 @@ Backup::Backup(const Backup& backup) : QRunnable(), m_backup_id(backup.m_backup_
 }
 
 
-int Backup::do_backup(const YAML::Node&, const struct Option& options) {
+int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 	auto logger = spdlog::get("core");
+
+	const YAML::Node& backup = params["backup"];
+	if (backup.IsDefined() and backup.IsMap()) {
+		const YAML::Node& block_size = backup["block_size"];
+		if (block_size.IsDefined() and block_size.IsScalar()) {
+			uint32_t new_block_size = block_size.as<uint16_t>();
+			if (new_block_size != 0 and (new_block_size & (new_block_size - 1)) == 0) {
+				Backup::ms_block_size = new_block_size;
+				logger->info("Backup: using {} as block size", Backup::ms_block_size);
+			} else {
+				logger->error("Backup: wrong value of block size {}, should be a power of two", new_block_size);
+				return 1;
+			}
+		}
+	}
 
 	if (not Key::get().open_for_encrypt()) {
 		logger->critical("Failed to open keys");
@@ -193,7 +211,7 @@ void Backup::run() {
 
 					QIODevice * file_stream = source->open(file_info);
 
-					QByteArray buffer = file_stream->read(4096);
+					QByteArray buffer = file_stream->read(Backup::ms_block_size);
 					for (quint32 sequence = 0; buffer.size() > 0; sequence++) {
 						this->m_lock.lock();
 						this->m_current_position += buffer.size();
@@ -248,7 +266,7 @@ void Backup::run() {
 							break;
 						}
 
-						buffer = file_stream->read(4096);
+						buffer = file_stream->read(Backup::ms_block_size);
 					}
 
 					delete file_stream;

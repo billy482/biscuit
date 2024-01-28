@@ -63,6 +63,7 @@ namespace Biscuit {
 				QString m_current_path;
 				uint64_t m_current_position = 0;
 				uint64_t m_current_size = 0;
+				static uint16_t ms_block_size;
 		};
 	}
 }
