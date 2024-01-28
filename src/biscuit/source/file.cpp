@@ -56,7 +56,7 @@ File * File::configure(const QString& path, const Node& node) {
 	File * new_file = new File(path);
 
 	const Node& include_patterns = node["include_patterns"];
-	if (include_patterns.IsSequence()) {
+	if (include_patterns.IsDefined() and include_patterns.IsSequence()) {
 		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++) {
 			std::string str_pattern = iter->as<std::string>();
 			new_file->m_include_pattern.append(QRegularExpression::fromWildcard(QString(str_pattern.c_str())));
@@ -64,7 +64,7 @@ File * File::configure(const QString& path, const Node& node) {
 	}
 
 	const Node& exclude_paths = node["exclude"];
-	if (exclude_paths.IsSequence()) {
+	if (exclude_paths.IsDefined() and exclude_paths.IsSequence()) {
 		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++) {
 			std::string str_pattern = iter->as<std::string>();
 			new_file->m_exclude_path.append(QString(str_pattern.c_str()));
@@ -72,7 +72,7 @@ File * File::configure(const QString& path, const Node& node) {
 	}
 
 	const Node& exclude_patterns = node["exclude_patterns"];
-	if (exclude_patterns.IsSequence()) {
+	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence()) {
 		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++) {
 			std::string str_pattern = iter->as<std::string>();
 			new_file->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString(str_pattern.c_str())));
