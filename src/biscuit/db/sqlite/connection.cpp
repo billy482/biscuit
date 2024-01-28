@@ -84,7 +84,58 @@ bool SqliteConnection::finish_backup(const BackupId& backup) {
 	sqlite3_reset(statement);
 
 
-	statement = this->prepare_query("finish_backup", "UPDATE backups SET end_time = unixepoch(), size = $1 WHERE id = $2");
+	statement = this->prepare_query("select_parent_backup", "SELECT parent_backup FROM backups WHERE id = $1 AND parent_backup IS NOT NULL LIMIT 1");
+	if (statement == nullptr)
+		return false;
+
+	ret = sqlite3_bind_int(statement, 1, backup_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int parent_backup = -1;
+	int64_t backup_size_diff = -1;
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	} else if (ret == SQLITE_ROW) {
+		parent_backup = sqlite3_column_int64(statement, 0);
+		sqlite3_reset(statement);
+
+
+		statement = this->prepare_query("compute_backup_size_diff", "SELECT SUM(LENGTH(data)) FROM blocks WHERE id IN (SELECT block FROM files2blocks nb WHERE file IN (SELECT file FROM backups2files WHERE backup = $1) AND NOT EXISTS (SELECT 1 FROM files2blocks ob WHERE nb.block = ob.block AND ob.file IN (SELECT file FROM backups2files WHERE backup = $2)))");
+		if (statement == nullptr)
+			return false;
+
+		ret = sqlite3_bind_int(statement, 1, backup_id);
+		if (ret == SQLITE_ERROR) {
+			this->print_error();
+			sqlite3_reset(statement);
+			return false;
+		}
+
+		ret = sqlite3_bind_int(statement, 2, parent_backup);
+		if (ret == SQLITE_ERROR) {
+			this->print_error();
+			sqlite3_reset(statement);
+			return false;
+		}
+
+		if (ret == SQLITE_ERROR) {
+			this->print_error();
+			sqlite3_reset(statement);
+			return false;
+		} else if (ret == SQLITE_ROW)
+			backup_size_diff = sqlite3_column_int64(statement, 0);
+	}
+	sqlite3_reset(statement);
+
+
+	statement = this->prepare_query("finish_backup", "UPDATE backups SET end_time = unixepoch(), size = $1, increment_size = $2 WHERE id = $3");
 	if (statement == nullptr)
 		return false;
 
@@ -95,7 +146,23 @@ bool SqliteConnection::finish_backup(const BackupId& backup) {
 		return false;
 	}
 
-	ret = sqlite3_bind_int(statement, 2, backup_id);
+	if (backup_size_diff >= 0) {
+		ret = sqlite3_bind_int64(statement, 2, backup_size_diff);
+		if (ret == SQLITE_ERROR) {
+			this->print_error();
+			sqlite3_reset(statement);
+			return false;
+		}
+	} else {
+		ret = sqlite3_bind_null(statement, 2);
+		if (ret == SQLITE_ERROR) {
+			this->print_error();
+			sqlite3_reset(statement);
+			return false;
+		}
+	}
+
+	ret = sqlite3_bind_int(statement, 3, backup_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
 		sqlite3_reset(statement);
