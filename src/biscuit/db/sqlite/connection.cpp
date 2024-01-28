@@ -53,20 +53,49 @@ bool SqliteConnection::connected() {
 	return true;
 }
 
-bool SqliteConnection::finish_backup(const BackupId& backup_id) {
-	sqlite3_stmt * statement = this->prepare_query("finish_backup", "UPDATE backups SET end_time = unixepoch() WHERE id = $1");
+bool SqliteConnection::finish_backup(const BackupId& backup) {
+	sqlite3_stmt * statement = this->prepare_query("compute_backup_size", "SELECT SUM(LENGTH(data)) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1))");
 	if (statement == nullptr)
 		return false;
 
 	bool ok;
-	int64_t int_backup_id = backup_id.value().toLongLong(&ok);
+	int32_t backup_id = backup.value().toInt(&ok);
 	if (not ok) {
 		this->print_error();
 		sqlite3_reset(statement);
 		return false;
 	}
 
-	int ret = sqlite3_bind_int64(statement, 1, int_backup_id);
+	int ret = sqlite3_bind_int(statement, 1, backup_id);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	int64_t backup_size = 0;
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	} else if (ret == SQLITE_ROW)
+		backup_size = sqlite3_column_int64(statement, 0);
+	sqlite3_reset(statement);
+
+
+	statement = this->prepare_query("finish_backup", "UPDATE backups SET end_time = unixepoch(), size = $1 WHERE id = $2");
+	if (statement == nullptr)
+		return false;
+
+	ret = sqlite3_bind_int64(statement, 1, backup_size);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return false;
+	}
+
+	ret = sqlite3_bind_int(statement, 2, backup_id);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
 		sqlite3_reset(statement);

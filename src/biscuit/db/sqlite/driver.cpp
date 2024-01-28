@@ -49,7 +49,7 @@ SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(pat
 	sqlite3 * connection = nullptr;
 	QByteArray filename = this->m_path.absoluteFilePath().toUtf8();
 	logger->debug("Opening database {}", filename.data());
-	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
+	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
 	if (ret != 0) {
 		logger->error("Error while opening database {} because {}", filename.data(), sqlite3_errmsg(connection));
 		sqlite3_close_v2(connection);
