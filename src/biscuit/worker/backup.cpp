@@ -66,7 +66,6 @@ Backup::Backup(const Backup& backup) : QRunnable(), m_backup_id(backup.m_backup_
 
 
 int Backup::do_backup(const YAML::Node&, const struct Option& options) {
-	// TODO: use a thread pool
 	auto logger = spdlog::get("core");
 
 	if (not Key::get().open_for_encrypt()) {
@@ -253,6 +252,12 @@ void Backup::run() {
 					}
 
 					delete file_stream;
+				} else {
+					file_id = connection->get_file(file_info, host_id);
+					if (file_id.is_error()) {
+						logger->error("Backup: error while getting directory: {}", file_info.path().toUtf8().data());
+						continue;
+					}
 				}
 			} else if (file_info.is_dir()) {
 				file_id = connection->get_file(file_info, host_id);

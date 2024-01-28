@@ -521,7 +521,7 @@ bool SqliteConnection::is_newer_or_not_exists(const Source::FileInfo& file_info,
 		return false;
 	}
 
-	ret = sqlite3_bind_int64(statement, 2, file_info.modified_time().currentSecsSinceEpoch());
+	ret = sqlite3_bind_int64(statement, 2, file_info.modified_time().toSecsSinceEpoch());
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
 		sqlite3_reset(statement);
