@@ -591,17 +591,24 @@ Biscuit::Db::BackupId SqliteConnection::start_backup() {
 	if (statement == nullptr)
 		return BackupId();
 
+	int32_t parent_backup_id = -1;
 	int ret = sqlite3_step(statement);
-	int32_t backup_id = sqlite3_column_int(statement, 0);
+	if (ret == SQLITE_ERROR) {
+		this->print_error();
+		sqlite3_reset(statement);
+		return BackupId();
+	} else if (ret == SQLITE_ROW)
+		parent_backup_id = sqlite3_column_int(statement, 0);
+	sqlite3_reset(statement);
 
 	statement = this->prepare_query("start_backup", "INSERT INTO backups (parent_backup) VALUES ($1) RETURNING id");
 	if (statement == nullptr)
 		return BackupId();
 
-	if (backup_id != -1)
-		ret = sqlite3_bind_int(statement, 0, backup_id);
+	if (parent_backup_id != -1)
+		ret = sqlite3_bind_int(statement, 1, parent_backup_id);
 	else
-		ret = sqlite3_bind_null(statement, 0);
+		ret = sqlite3_bind_null(statement, 1);
 	if (ret == SQLITE_ERROR) {
 		this->print_error();
 		return BackupId();
@@ -613,7 +620,7 @@ Biscuit::Db::BackupId SqliteConnection::start_backup() {
 		return BackupId();
 	}
 
-	backup_id = sqlite3_column_int(statement, 0);
+	int32_t backup_id = sqlite3_column_int(statement, 0);
 	sqlite3_reset(statement);
 	return BackupId(SqlStatus::has_result, QVariant(backup_id));
 }

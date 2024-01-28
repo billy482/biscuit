@@ -116,7 +116,7 @@ int Backup::do_backup(const YAML::Node&, const struct Option& options) {
 					worker.m_lock.lock();
 					console << "#" << i + 1 << ": " << worker.m_current_path;
 					if (worker.m_current_size > 0)
-						console << ", " << worker.m_current_position << " / " << worker.m_current_size << " = " << QString::number(worker.m_current_position / worker.m_current_size, 'f', 2) << "%";
+						console << ", " << worker.m_current_position << " / " << worker.m_current_size << " = " << QString::number(static_cast<double>(100 * worker.m_current_position) / worker.m_current_size, 'f', 2) << "%";
 					console << Qt::endl;
 					worker.m_lock.unlock();
 				}

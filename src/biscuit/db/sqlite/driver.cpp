@@ -66,6 +66,7 @@ SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(pat
 		else {
 			logger->error("Error while creating database");
 			sqlite3_close_v2(connection);
+			return;
 		}
 	}
 
@@ -102,6 +103,7 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 		"CREATE TABLE backups2files (backup INTEGER NOT NULL REFERENCES backups(id) ON UPDATE CASCADE ON DELETE CASCADE, file INTEGER NOT NULL REFERENCES files(id) ON UPDATE CASCADE ON DELETE CASCADE, metadata INTEGER NOT NULL REFERENCES metadata(id) ON UPDATE CASCADE ON DELETE CASCADE)",
 		"CREATE TABLE configuration (key TEXT PRIMARY KEY, value TEXT NULL)",
 		"INSERT INTO configuration VALUES ('db_version', '1')",
+		"PRAGMA journal = wal",
 		nullptr
 	};
 
