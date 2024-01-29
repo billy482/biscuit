@@ -30,11 +30,13 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
+#include <QtCore/QElapsedTimer>
 #include <QtCore/QHash>
 #include <QtCore/QIODevice>
 #include <QtCore/QList>
 #include <QtCore/QTextStream>
 #include <QtCore/QThreadPool>
+#include <QtCore/QTime>
 #include <QtCore/QWaitCondition>
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
@@ -123,7 +125,13 @@ int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 		logger->critical("Backup: error while synchronizing key");
 		return 4;
 	}
-	
+
+
+	QElapsedTimer timer;
+
+	logger->info("Starting backup");
+	timer.start();
+
 	Db::BackupId backup_id = connection->start_backup();
 	if (backup_id.is_found()) {
 		QThreadPool pool;
@@ -163,6 +171,9 @@ int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 			logger->error("Error while finishing backup");
 	} else
 		logger->error("Error while starting backup");
+
+	QTime clock = QTime::fromMSecsSinceStartOfDay(timer.elapsed());
+	logger->info("Time spent: {}", clock.toString("HH:mm:ss.zzz").toUtf8().data());
 
 	delete connection;
 	driver->close();
