@@ -49,7 +49,7 @@ SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(pat
 	sqlite3 * connection = nullptr;
 	QByteArray filename = this->m_path.absoluteFilePath().toUtf8();
 	logger->debug("Opening database {}", filename.data());
-	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
+	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
 	if (ret != 0) {
 		logger->error("Error while opening database {} because {}", filename.data(), sqlite3_errmsg(connection));
 		sqlite3_close_v2(connection);
@@ -70,11 +70,30 @@ SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(pat
 		}
 	}
 
+	ret = sqlite3_prepare(connection, "BEGIN", 5, &statement, nullptr);
+	if (ret == SQLITE_ERROR) {
+		sqlite3_finalize(statement);
+		sqlite3_close_v2(connection);
+		return;
+	}
+
+	ret = sqlite3_step(statement);
+	if (ret == SQLITE_ERROR) {
+		sqlite3_finalize(statement);
+		sqlite3_close_v2(connection);
+		return;
+	}
+
 	this->m_connection = connection;
 }
 
 
 bool SqliteDriver::close() {
+	sqlite3_stmt * statement = nullptr;
+	sqlite3_prepare(this->m_connection, "COMMIT", 6, &statement, nullptr);
+	sqlite3_step(statement);
+	sqlite3_finalize(statement);
+
 	if (this->m_connection != nullptr)
 		sqlite3_close_v2(this->m_connection);
 	this->m_connection = nullptr;
