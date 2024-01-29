@@ -93,6 +93,7 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 	auto logger = spdlog::get("database");
 
 	const char * queries[] = {
+		"PRAGMA journal_mode=WAL",
 		"CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint BLOB NOT NULL UNIQUE, hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')), length INTEGER NOT NULL CHECK (length > 0), first_use INTEGER NOT NULL DEFAULT (unixepoch()), last_use INTEGER NOT NULL DEFAULT (unixepoch()))",
 		"CREATE TABLE blocks (id INTEGER PRIMARY KEY AUTOINCREMENT, hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')), hash BLOB NOT NULL, data BLOB NOT NULL, key INTEGER REFERENCES keys(id) ON UPDATE CASCADE ON DELETE RESTRICT)",
 		"CREATE TABLE hosts (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT NOT NULL)",
@@ -103,7 +104,6 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 		"CREATE TABLE backups2files (backup INTEGER NOT NULL REFERENCES backups(id) ON UPDATE CASCADE ON DELETE CASCADE, file INTEGER NOT NULL REFERENCES files(id) ON UPDATE CASCADE ON DELETE CASCADE, metadata INTEGER NOT NULL REFERENCES metadata(id) ON UPDATE CASCADE ON DELETE CASCADE)",
 		"CREATE TABLE configuration (key TEXT PRIMARY KEY, value TEXT NULL)",
 		"INSERT INTO configuration VALUES ('db_version', '1')",
-		"PRAGMA journal = wal",
 		nullptr
 	};
 
@@ -118,7 +118,7 @@ bool SqliteDriver::create_db(sqlite3 * connection) {
 		ret = sqlite3_step(statement);
 		sqlite3_finalize(statement);
 
-		if (ret != SQLITE_DONE)
+		if (ret == SQLITE_ERROR)
 			return false;
 	}
 
