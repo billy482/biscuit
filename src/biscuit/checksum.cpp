@@ -30,45 +30,34 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_WORKER_BACKUP_HPP__
-#define __BISCUIT_WORKER_BACKUP_HPP__
-
-#include <QtCore/QMutex>
-#include <QtCore/QRunnable>
 #include <QtCore/QString>
 
-#include "../checksum.hpp"
+#include "checksum.hpp"
 
-namespace YAML {
-	class Node;
+const Biscuit::Checksum * Biscuit::Checksum::find(const QString& name, bool& found) {
+	static struct Checksum algos[] = {
+		{ "md4",      QCryptographicHash::Md4 },
+		{ "md5",      QCryptographicHash::Md5 },
+		{ "sha1",     QCryptographicHash::Sha1 },
+		{ "sha224",   QCryptographicHash::Sha224 },
+		{ "sha256",   QCryptographicHash::Sha256 },
+		{ "sha384",   QCryptographicHash::Sha384 },
+		{ "sha512",   QCryptographicHash::Sha512 },
+		{ "sha3-224", QCryptographicHash::Sha3_224 },
+		{ "sha3-256", QCryptographicHash::Sha3_256 },
+		{ "sha3-384", QCryptographicHash::Sha3_384 },
+		{ "sha3-512", QCryptographicHash::Sha3_512 },
+
+		{ nullptr, QCryptographicHash::Md4 }
+	};
+
+	QByteArray raw_name = name.toUtf8();
+	for (struct Checksum * ptr = algos; ptr->name != nullptr; ptr++)
+		if (raw_name == ptr->name) {
+			found = true;
+			return ptr;
+		}
+
+	found = false;
+	return algos + 2;
 }
-
-namespace Biscuit {
-	namespace Db {
-		class BackupId;
-	}
-	struct Option;
-
-	namespace Worker {
-		class Backup : public QRunnable {
-			public:
-				Backup(const Db::BackupId& backup_id);
-				Backup(const Backup& backup);
-				virtual ~Backup() = default;
-
-				static int do_backup(const YAML::Node& config, const struct Option& options);
-				virtual void run();
-
-			private:
-				const Db::BackupId& m_backup_id;
-				QMutex m_lock;
-				QString m_current_path;
-				uint64_t m_current_position = 0;
-				uint64_t m_current_size = 0;
-				static uint16_t ms_block_size;
-				static const struct Checksum * ms_checksum;
-		};
-	}
-}
-
-#endif

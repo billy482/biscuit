@@ -30,45 +30,20 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_WORKER_BACKUP_HPP__
-#define __BISCUIT_WORKER_BACKUP_HPP__
+#ifndef __BISCUIT_CHECKSUM_HPP__
+#define __BISCUIT_CHECKSUM_HPP__
 
-#include <QtCore/QMutex>
-#include <QtCore/QRunnable>
-#include <QtCore/QString>
+#include <QtCore/QCryptographicHash>
 
-#include "../checksum.hpp"
-
-namespace YAML {
-	class Node;
-}
+class QString;
 
 namespace Biscuit {
-	namespace Db {
-		class BackupId;
-	}
-	struct Option;
+	struct Checksum {
+		const char * name;
+		QCryptographicHash::Algorithm value;
 
-	namespace Worker {
-		class Backup : public QRunnable {
-			public:
-				Backup(const Db::BackupId& backup_id);
-				Backup(const Backup& backup);
-				virtual ~Backup() = default;
-
-				static int do_backup(const YAML::Node& config, const struct Option& options);
-				virtual void run();
-
-			private:
-				const Db::BackupId& m_backup_id;
-				QMutex m_lock;
-				QString m_current_path;
-				uint64_t m_current_position = 0;
-				uint64_t m_current_size = 0;
-				static uint16_t ms_block_size;
-				static const struct Checksum * ms_checksum;
-		};
-	}
+		static const struct Checksum * find(const QString& name, bool& found);
+	};
 }
 
 #endif

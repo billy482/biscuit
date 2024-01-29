@@ -30,7 +30,6 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QCryptographicHash>
 #include <QtCore/QHash>
 #include <QtCore/QIODevice>
 #include <QtCore/QList>
@@ -57,6 +56,7 @@ using DbConnection = Biscuit::Db::Connection;
 using DbDriver = Biscuit::Db::Driver;
 
 uint16_t Backup::ms_block_size = 1024;
+const struct Biscuit::Checksum * Backup::ms_checksum = nullptr;
 
 
 Backup::Backup(const Db::BackupId& backup_id) : QRunnable(), m_backup_id(backup_id) {
@@ -81,6 +81,20 @@ int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 				logger->info("Backup: using {} as block size", Backup::ms_block_size);
 			} else {
 				logger->error("Backup: wrong value of block size {}, should be a power of two", new_block_size);
+				return 1;
+			}
+		}
+
+		const YAML::Node& algo = backup["checksum"];
+		if (algo.IsDefined() and algo.IsScalar()) {
+			bool found = false;
+			QString algo_name = QString::fromStdString(algo.as<std::string>());
+			const Checksum * checksum = Biscuit::Checksum::find(algo_name, found);
+			if (found) {
+				Backup::ms_checksum = checksum;
+				logger->info("Backup: using {} as checksum", checksum->name);
+			} else {
+				logger->error("Backup: unknown checksum {}", algo_name.toUtf8().data());
 				return 1;
 			}
 		}
@@ -217,7 +231,7 @@ void Backup::run() {
 						this->m_current_position += buffer.size();
 						this->m_lock.unlock();
 
-						QByteArray digest = QCryptographicHash::hash(buffer, QCryptographicHash::Sha1);
+						QByteArray digest = QCryptographicHash::hash(buffer, Backup::ms_checksum->value);
 
 						static QHash<QByteArray, QByteArray> cache;
 						static QMutex l;
@@ -230,8 +244,7 @@ void Backup::run() {
 						l.unlock();
 
 						// find block into db and insert it if not found then retrieve its id
-						static const QString hash_algo = "sha1";
-						Db::BlockId block_id = connection->get_block(digest, hash_algo, key_id);
+						Db::BlockId block_id = connection->get_block(digest, Backup::ms_checksum->name, key_id);
 						if (block_id.is_error()) {
 							logger->error("Backup: error get block: #{} {}", sequence, digest.toBase64().data());
 
@@ -243,7 +256,7 @@ void Backup::run() {
 							break;
 						} else if (not block_id.is_found()) {
 							QByteArray encrypted = key.encrypt(buffer);
-							block_id = connection->insert_block(encrypted, digest, hash_algo, key_id);
+							block_id = connection->insert_block(encrypted, digest, Backup::ms_checksum->name, key_id);
 							if (block_id.is_error()) {
 								logger->error("Backup: error get block: #{} {}", sequence, digest.toBase64().data());
 
@@ -295,13 +308,13 @@ void Backup::run() {
 
 
 			QByteArray metadata = file_info.metadata().toJson(QJsonDocument::Compact);
-			QByteArray digest = QCryptographicHash::hash(metadata, QCryptographicHash::Sha1);
-			Db::MetadataId metadata_id = connection->get_metadata(digest, "sha1");
+			QByteArray digest = QCryptographicHash::hash(metadata, Backup::ms_checksum->value);
+			Db::MetadataId metadata_id = connection->get_metadata(digest, Backup::ms_checksum->name);
 			if (metadata_id.is_error()) {
 				logger->error("Backup: error while getting metadata: {}", file_info.path().toUtf8().data());
 				continue;
 			} else if (not metadata_id.is_found()) {
-				metadata_id = connection->insert_metadata(metadata, digest, "sha1");
+				metadata_id = connection->insert_metadata(metadata, digest, Backup::ms_checksum->name);
 				if (metadata_id.is_error()) {
 					logger->error("Backup: error while getting metadata: {}", file_info.path().toUtf8().data());
 					continue;
