@@ -338,4 +338,10 @@ void Backup::run() {
 	}
 
 	delete connection;
+
+	this->m_lock.lock();
+	this->m_current_path = "idle";
+	this->m_current_position = 0;
+	this->m_current_size = 0;
+	this->m_lock.unlock();
 }
