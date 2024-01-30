@@ -107,7 +107,7 @@ bool SqliteConnection::finish_backup(const BackupId& backup) {
 		sqlite3_reset(statement);
 
 
-		statement = this->prepare_query("compute_backup_size_diff", "SELECT SUM(LENGTH(data)) FROM blocks WHERE id IN (SELECT block FROM files2blocks nb WHERE file IN (SELECT file FROM backups2files WHERE backup = $1) AND NOT EXISTS (SELECT 1 FROM files2blocks ob WHERE nb.block = ob.block AND ob.file IN (SELECT file FROM backups2files WHERE backup = $2)))");
+		statement = this->prepare_query("compute_backup_size_diff", "SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1)) AND id NOT IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $2))");
 		if (statement == nullptr)
 			return false;
 
@@ -125,6 +125,7 @@ bool SqliteConnection::finish_backup(const BackupId& backup) {
 			return false;
 		}
 
+		ret = sqlite3_step(statement);
 		if (ret == SQLITE_ERROR) {
 			this->print_error();
 			sqlite3_reset(statement);
