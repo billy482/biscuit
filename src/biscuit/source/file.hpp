@@ -66,6 +66,7 @@ namespace Biscuit {
 				QList<QRegularExpression> m_include_pattern;
 				QList<QRegularExpression> m_exclude_pattern;
 				QList<QString> m_exclude_path;
+				QList<QString> m_exclude_dir_if;
 		};
 	}
 }

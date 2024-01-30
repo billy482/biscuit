@@ -56,27 +56,27 @@ File * File::configure(const QString& path, const Node& node) {
 	File * new_file = new File(path);
 
 	const Node& include_patterns = node["include_patterns"];
-	if (include_patterns.IsDefined() and include_patterns.IsSequence()) {
-		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++) {
-			std::string str_pattern = iter->as<std::string>();
-			new_file->m_include_pattern.append(QRegularExpression::fromWildcard(QString(str_pattern.c_str())));
-		}
-	}
+	if (include_patterns.IsDefined() and include_patterns.IsSequence())
+		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++)
+			new_file->m_include_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
 
 	const Node& exclude_paths = node["exclude"];
-	if (exclude_paths.IsDefined() and exclude_paths.IsSequence()) {
-		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++) {
-			std::string str_pattern = iter->as<std::string>();
-			new_file->m_exclude_path.append(QString(str_pattern.c_str()));
-		}
-	}
+	if (exclude_paths.IsDefined() and exclude_paths.IsSequence())
+		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++)
+			new_file->m_exclude_path.append(QString::fromStdString(iter->as<std::string>()));
 
 	const Node& exclude_patterns = node["exclude_patterns"];
-	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence()) {
-		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++) {
-			std::string str_pattern = iter->as<std::string>();
-			new_file->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString(str_pattern.c_str())));
-		}
+	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence())
+		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++)
+			new_file->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
+
+	const Node& option = node["options"];
+	if (option.IsDefined() and option.IsMap()) {
+
+		const Node& exclude_if = option["exclude_if_present"];
+		if (exclude_if.IsDefined() and exclude_if.IsSequence())
+			for (YAML::const_iterator iter = exclude_if.begin(); iter != exclude_if.end(); iter++)
+				new_file->m_exclude_dir_if.append(QString::fromStdString(iter->as<std::string>()));
 	}
 
 	return new_file;
@@ -183,8 +183,18 @@ FileInfo File::next() {
 				continue;
 		}
 		
-		if (file.isDir())
-			this->m_paths.push(QDir(file.absoluteFilePath()).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware));
+		if (file.isDir()) {
+			QFileInfoList files = QDir(file.absoluteFilePath()).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware);
+
+			bool found = false;
+			if (this->m_exclude_dir_if.size() > 0)
+				for (auto iter_file = files.begin(); iter_file != files.end() and not found; iter_file++)
+					for (auto iter = this->m_exclude_dir_if.begin(); iter != this->m_exclude_dir_if.end() and not found; iter++)
+						found = iter_file->fileName() == *iter;
+
+			if (not found)
+				this->m_paths.push(files);
+		}
 
 		this->m_lock.unlock();
 
