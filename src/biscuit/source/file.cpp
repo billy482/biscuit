@@ -30,11 +30,14 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
+#include <errno.h>
 #include <spdlog/spdlog.h>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <string.h>
+#include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
 
 #include "file.hpp"
@@ -72,6 +75,9 @@ File * File::configure(const QString& path, const Node& node) {
 
 	const Node& option = node["options"];
 	if (option.IsDefined() and option.IsMap()) {
+		const Node& exclude_other = option["exclude_other_filesystem"];
+		if (exclude_other.IsDefined() and exclude_other.IsScalar())
+			new_file->m_exclude_other_devices = exclude_other.as<bool>();
 
 		const Node& exclude_if = option["exclude_if_present"];
 		if (exclude_if.IsDefined() and exclude_if.IsSequence())
@@ -129,6 +135,25 @@ FileInfo File::next() {
 
 		QFileInfo file = files.first();
 		files.pop_front();
+
+		if (this->m_exclude_other_devices) {
+			struct stat st_dir, st_file;
+
+			QByteArray raw_dir = file.dir().absolutePath().toUtf8();
+			int ret_dir = lstat(raw_dir.data(), &st_dir);
+			if (ret_dir != 0)
+				logger->error("File: error while getting file information, path: {}, error: {}", raw_dir.data(), strerror(errno));
+
+			QByteArray raw_file = file.absolutePath().toUtf8();
+			int ret_file = lstat(raw_file.data(), &st_file);
+			if (ret_file != 0)
+				logger->error("File: error while getting file information, path: {}, error: {}", raw_file.data(), strerror(errno));
+
+			if (ret_dir == 0 and ret_file == 0 and st_dir.st_dev != st_file.st_dev) {
+				logger->info("File: skipping file {} because this file is on another device", raw_file.data());
+				continue;
+			}
+		}
 
 		if (file.isFile()) {
 			if (this->m_include_pattern.size() > 0) {
@@ -192,7 +217,7 @@ FileInfo File::next() {
 					for (auto iter = this->m_exclude_dir_if.begin(); iter != this->m_exclude_dir_if.end() and not found; iter++)
 						found = iter_file->fileName() == *iter;
 
-			if (not found)
+			if (not found and files.size() > 0)
 				this->m_paths.push(files);
 		}
 
