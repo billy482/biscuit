@@ -30,86 +30,35 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_SOURCE_SSH_HPP__
-#define __BISCUIT_SOURCE_SSH_HPP__
+#include "ssh.hpp"
 
-#include <libssh2.h>
-#include <libssh2_sftp.h>
-#include <QtCore/QIODevice>
-#include <QtCore/QList>
-#include <QtCore/QStack>
-#include <spdlog/spdlog.h>
+using namespace Biscuit::Source;
 
-#include "source.hpp"
-#include "../host.hpp"
-
-typedef struct _LIBSSH2_SESSION LIBSSH2_SESSION;
-
-namespace Biscuit {
-	namespace Source {
-		class Ssh : public Source {
-			public:
-				virtual ~Ssh();
-
-				static Ssh * configure(const YAML::Node& file);
-				virtual FileInfo next(uint16_t worker, uint16_t total_workers) override;
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) override;
-
-			private:
-				class SshSession {
-					public:
-						SshSession(Ssh& ssh);
-						~SshSession();
-
-						bool do_connection();
-						void do_disconnection();
-						QIODevice * open(const FileInfo& file);
-						bool scan_directory(const QString &path);
-						bool start_ftp_session();
-
-					private:
-						void log_error();
-						void log_error(int type, const char * message);
-
-						Ssh& m_ssh;
-						int m_socket = -1;
-						LIBSSH2_SESSION * m_session = nullptr;
-						LIBSSH2_SFTP * m_channel = nullptr;
-				};
-
-				class SshFile : public QIODevice {
-					public:
-						SshFile(LIBSSH2_SFTP_HANDLE * sftp_handle);
-						virtual ~SshFile();
-
-						virtual void close() override;
-
-					protected:
-						virtual qint64 readData(char * data, qint64 max_size) override;
-						virtual qint64 writeData(const char * data, qint64 max_size) override;
-
-					private:
-						LIBSSH2_SFTP_HANDLE * m_handle;
-				};
-
-				Ssh(const QString& hostname, const QString& path);
-
-				static void init() __attribute__((constructor));
-
-				int m_connection_timeout = 10000;
-				Host m_host;
-				uint16_t m_port = 22;
-				QString m_user;
-				bool m_use_ssh_agent = false;
-				QString m_identity_file;
-				QString m_path;
-				static QHash<QString,QString> ms_credential;
-				SshSession ** m_sessions = nullptr;
-				uint16_t m_nb_sessions = 0;
-				QStack<QList<FileInfo>> m_paths;
-				std::shared_ptr<spdlog::logger> m_logger;
-		};
-	}
+Ssh::SshFile::SshFile(LIBSSH2_SFTP_HANDLE * sftp_handle) : QIODevice(), m_handle(sftp_handle) {
+	this->setOpenMode(QIODeviceBase::ReadOnly);
 }
 
-#endif
+Ssh::SshFile::~SshFile() {
+	this->close();
+}
+
+
+void Ssh::SshFile::close() {
+	if (this->m_handle != nullptr)
+		libssh2_sftp_close_handle(this->m_handle);
+	this->m_handle = nullptr;
+}
+
+qint64 Ssh::SshFile::readData(char * data, qint64 max_size) {
+	if (this->m_handle != nullptr)
+		return libssh2_sftp_read(this->m_handle, data, max_size);
+	else
+		return -1;
+}
+
+qint64 Ssh::SshFile::writeData(const char *data, qint64 max_size) {
+	if (this->m_handle != nullptr)
+		return libssh2_sftp_write(this->m_handle, data, max_size);
+	else
+		return -1;
+}
