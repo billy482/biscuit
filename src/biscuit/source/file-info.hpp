@@ -44,6 +44,7 @@ namespace Biscuit {
 		enum class FileType {
 			File,
 			Directory,
+			SymLink,
 			Unknown
 		};
 
@@ -51,6 +52,7 @@ namespace Biscuit {
 			public:
 				FileInfo() = default;
 				FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, const QJsonObject& metadata);
+				FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, QJsonDocument&& metadata);
 				FileInfo(const QFileInfo& info, const QJsonObject& metadata);
 				FileInfo(const QFileInfo& info, QJsonDocument&& metadata);
 				FileInfo(const FileInfo& info);
@@ -64,6 +66,9 @@ namespace Biscuit {
 				}
 				inline bool is_file() const {
 					return this->m_type == FileType::File;
+				}
+				inline bool is_link() const {
+					return this->m_type == FileType::SymLink;
 				}
 				inline bool is_invalid() const {
 					return this->m_is_invalid;
@@ -82,6 +87,7 @@ namespace Biscuit {
 				}
 
 				FileInfo& operator =(const FileInfo& info);
+				bool operator <(const FileInfo& info) const;
 
 			private:
 				QString m_path;

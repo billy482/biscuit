@@ -30,63 +30,70 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_SOURCE_SOURCE_HPP__
-#define __BISCUIT_SOURCE_SOURCE_HPP__
+#ifndef __BISCUIT_SOURCE_SSH_HPP__
+#define __BISCUIT_SOURCE_SSH_HPP__
 
+#include <libssh2.h>
+#include <libssh2_sftp.h>
+#include <QtCore/QIODevice>
 #include <QtCore/QList>
-#include <QtCore/QMutex>
-#include <QtCore/QRegularExpression>
-#include <QtCore/QString>
+#include <QtCore/QStack>
+#include <spdlog/spdlog.h>
 
+#include "source.hpp"
 #include "../host.hpp"
 
-namespace YAML {
-	class Node;
-}
-
-class QIODevice;
+typedef struct _LIBSSH2_SESSION LIBSSH2_SESSION;
 
 namespace Biscuit {
-	class Host;
-
 	namespace Source {
-		class FileInfo;
-
-		class Source {
+		class Ssh : public Source {
 			public:
-				static Source * first_source();
-				inline const Host& host() const {
-					return this->m_host;
-				}
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) = 0;
-				virtual FileInfo next(uint16_t worker, uint16_t total_workers) = 0;
-				inline Source * next_source() {
-					return this->m_next;
-				}
-				static bool parse(const YAML::Node& node);
-				inline Source * previous_source() {
-					return this->m_previous;
-				}
+				virtual ~Ssh();
 
-			protected:
-				Source(const Host& host);
-				virtual ~Source();
-
-				void configure_options(const YAML::Node& node);
-
-				Host m_host;
-				QMutex m_lock;
-				QList<QRegularExpression> m_include_pattern;
-				QList<QRegularExpression> m_exclude_pattern;
-				QList<QString> m_exclude_path;
-				QList<QString> m_exclude_dir_if;
-				bool m_exclude_other_devices = false;
+				static Ssh * configure(const YAML::Node& file);
+				virtual FileInfo next(uint16_t worker, uint16_t total_workers) override;
+				virtual QIODevice * open(const FileInfo& file, uint16_t worker) override;
 
 			private:
-				static Source * ms_first;
-				static Source * ms_last;
-				Source * m_next = nullptr;
-				Source * m_previous = nullptr;
+				class SshFile : public QIODevice {
+					public:
+						SshFile(LIBSSH2_SFTP_HANDLE * sftp_handle);
+						virtual ~SshFile();
+
+						virtual void close() override;
+
+					protected:
+						virtual qint64 readData(char * data, qint64 max_size) override;
+						virtual qint64 writeData(const char * data, qint64 max_size) override;
+
+					private:
+						LIBSSH2_SFTP_HANDLE * m_handle;
+				};
+
+				Ssh(const QString& hostname, const QString& path);
+
+				bool scan_directory(LIBSSH2_SFTP * channel, const QString& path);
+
+				bool do_connection();
+				void do_disconnection();
+				static void init() __attribute__((constructor));
+				void log_error();
+				void log_error(int type, const char * message);
+
+				int m_connection_timeout = 10000;
+				Host m_host;
+				uint16_t m_port = 22;
+				QString m_user;
+				bool m_use_ssh_agent = false;
+				QString m_identity_file;
+				QString m_path;
+				static QHash<QString,QString> ms_credential;
+				int m_socket;
+				LIBSSH2_SESSION * m_session = nullptr;
+				LIBSSH2_SFTP ** m_channels = nullptr;
+				QStack<QList<FileInfo>> m_paths;
+				std::shared_ptr<spdlog::logger> m_logger;
 		};
 	}
 }

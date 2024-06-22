@@ -38,6 +38,8 @@ using namespace Biscuit::Source;
 
 FileInfo::FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, const QJsonObject& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(metadata), m_is_invalid(false) {}
 
+FileInfo::FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, QJsonDocument&& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(std::move(metadata)), m_is_invalid(false) {}
+
 FileInfo::FileInfo(const QFileInfo& info, const QJsonObject& metadata) : m_path(info.absoluteFilePath()), m_modified_time(info.lastModified()), m_type(FileInfo::from(info)), m_file_size(info.size()), m_metadata(metadata), m_is_invalid(not info.exists()) {}
 
 FileInfo::FileInfo(const QFileInfo& info, QJsonDocument&& metadata) : m_path(info.absoluteFilePath()), m_modified_time(info.lastModified()), m_type(FileInfo::from(info)), m_file_size(info.size()), m_metadata(std::move(metadata)), m_is_invalid(not info.exists()) {}
@@ -63,4 +65,8 @@ FileInfo& FileInfo::operator=(const FileInfo& info) {
 	this->m_metadata = info.m_metadata;
 	this->m_is_invalid = info.m_is_invalid;
 	return *this;
+}
+
+bool FileInfo::operator<(const FileInfo& info) const {
+	return this->m_path < info.m_path;
 }

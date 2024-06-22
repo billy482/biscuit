@@ -57,15 +57,16 @@ using Biscuit::Source::Source;
 using DbConnection = Biscuit::Db::Connection;
 using DbDriver = Biscuit::Db::Driver;
 
+uint16_t Backup::ms_ids = 0;
 uint16_t Backup::ms_block_size = 1024;
 const struct Biscuit::Checksum * Backup::ms_checksum = nullptr;
 
 
-Backup::Backup(const Db::BackupId& backup_id) : QRunnable(), m_backup_id(backup_id) {
+Backup::Backup(const Db::BackupId& backup_id) : QRunnable(), m_id(Backup::ms_ids++), m_backup_id(backup_id) {
 	this->setAutoDelete(false);
 }
 
-Backup::Backup(const Backup& backup) : QRunnable(), m_backup_id(backup.m_backup_id) {
+Backup::Backup(const Backup& backup) : QRunnable(), m_id(Backup::ms_ids++), m_backup_id(backup.m_backup_id) {
 	this->setAutoDelete(false);
 }
 
@@ -153,7 +154,7 @@ int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 				for (int i = 0; i < nb_workers; i++) {
 					Backup& worker = workers[i];
 					worker.m_lock.lock();
-					console << "#" << i + 1 << ": " << worker.m_current_path;
+					console << "#" << i + 1 << '|' << worker.m_current_file << ": " << worker.m_current_path;
 					if (worker.m_current_size > 0)
 						console << ", " << worker.m_current_position << " / " << worker.m_current_size << " = " << QString::number(static_cast<double>(100 * worker.m_current_position) / worker.m_current_size, 'f', 2) << "%";
 					console << Qt::endl;
@@ -182,7 +183,7 @@ int Backup::do_backup(const YAML::Node& params, const struct Option& options) {
 }
 
 void Backup::run() {
-	auto logger = spdlog::get("core");
+	std::shared_ptr<spdlog::logger> logger = spdlog::get("core");
 
 	DbDriver * driver = DbDriver::get();
 	if (driver == nullptr) {
@@ -211,10 +212,13 @@ void Backup::run() {
 			continue;
 		}
 
-		for (FileInfo file_info = source->next(); not file_info.is_invalid(); file_info = source->next()) {
+		for (FileInfo file_info = source->next(this->m_id, Backup::ms_ids); not file_info.is_invalid(); file_info = source->next(this->m_id, Backup::ms_ids)) {
 			logger->debug("Backup: checking file: {}", file_info.path().toUtf8().data());
 
+			static uint64_t current_file = 1;
+
 			this->m_lock.lock();
+			this->m_current_file = current_file++;
 			this->m_current_path = file_info.path();
 			this->m_current_position = 0;
 			this->m_current_size = 0;
@@ -234,7 +238,7 @@ void Backup::run() {
 					this->m_current_size = file_info.file_size();
 					this->m_lock.unlock();
 
-					QIODevice * file_stream = source->open(file_info);
+					QIODevice * file_stream = source->open(file_info, this->m_id);
 
 					QByteArray buffer = file_stream->read(Backup::ms_block_size);
 					for (quint32 sequence = 0; buffer.size() > 0; sequence++) {

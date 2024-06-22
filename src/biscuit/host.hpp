@@ -40,12 +40,17 @@ namespace Biscuit {
 		public:
 			Host();
 			Host(const QString& hostname);
+			Host(const Host& host) = default;
+			Host(Host&& host) = default;
 			~Host() = default;
 
 			inline const QString& hostname() const {
 				return this->m_hostname;
 			}
 			static Host& localhost();
+
+			Host& operator =(const Host& host) = default;
+			Host& operator =(Host&& host) = default;
 
 		private:
 			QString m_hostname;

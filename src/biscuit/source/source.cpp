@@ -36,6 +36,7 @@
 
 #include "file.hpp"
 #include "source.hpp"
+#include "ssh.hpp"
 
 using namespace Biscuit::Source;
 using YAML::Node;
@@ -44,20 +45,67 @@ using YAML::Node;
 Source * Source::ms_first = nullptr;
 Source * Source::ms_last = nullptr;
 
+Source::Source(const Host& host) : m_host(host) {}
+
 Source::~Source() {}
 
+
+void Source::configure_options(const Node& options) {
+	const Node& include_patterns = options["include_patterns"];
+	if (include_patterns.IsDefined() and include_patterns.IsSequence())
+		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++)
+			this->m_include_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
+
+	const Node& exclude_paths = options["exclude"];
+	if (exclude_paths.IsDefined() and exclude_paths.IsSequence())
+		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++)
+			this->m_exclude_path.append(QString::fromStdString(iter->as<std::string>()));
+
+	const Node& exclude_patterns = options["exclude_patterns"];
+	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence())
+		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++)
+			this->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
+
+	const Node& option = options["options"];
+	if (option.IsDefined() and option.IsMap()) {
+		const Node& exclude_other = option["exclude_other_filesystem"];
+		if (exclude_other.IsDefined() and exclude_other.IsScalar())
+			this->m_exclude_other_devices = exclude_other.as<bool>();
+
+		const Node& exclude_if = option["exclude_if_present"];
+		if (exclude_if.IsDefined() and exclude_if.IsSequence())
+			for (YAML::const_iterator iter = exclude_if.begin(); iter != exclude_if.end(); iter++)
+				this->m_exclude_dir_if.append(QString::fromStdString(iter->as<std::string>()));
+	}
+}
 
 Source * Source::first_source() {
 	return Source::ms_first;
 }
 
 bool Source::parse(const Node& config) {
-	if (not config.IsMap())
+	if (not config.IsSequence())
 		return false;
 
 	for (YAML::const_iterator iter = config.begin(); iter != config.end(); iter++) {
-		const std::string path = iter->first.as<std::string>();
-		Source * src = File::configure(path.c_str(), iter->second);
+		Source * src = nullptr;
+
+		const Node& file = *iter;
+		if (not file.IsMap())
+			return false;
+
+		const Node& option = file["options"];
+		if (option.IsDefined()) {
+			if (not option.IsMap())
+				return false;
+
+			const Node& ssh = option["ssh"];
+			if (ssh.IsDefined() and ssh.IsMap())
+				src = Ssh::configure(file);
+		}
+
+		if (src == nullptr)
+			src = File::configure(file);
 
 		if (src == nullptr)
 			return false;

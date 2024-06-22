@@ -30,65 +30,27 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_SOURCE_SOURCE_HPP__
-#define __BISCUIT_SOURCE_SOURCE_HPP__
-
-#include <QtCore/QList>
-#include <QtCore/QMutex>
-#include <QtCore/QRegularExpression>
 #include <QtCore/QString>
+#include <QtCore/QTextStream>
+#include <termios.h>
 
-#include "../host.hpp"
+#include "util.hpp"
 
-namespace YAML {
-	class Node;
+QString Biscuit::get_password(const QString& prompt) {
+	QTextStream out(stdout, QIODeviceBase::WriteOnly);
+	out << prompt << ": ";
+	out.flush();
+
+	struct termios tty;
+	tcgetattr(0, &tty);
+	tty.c_lflag &= ~ECHO;
+	tcsetattr(0, TCSANOW, &tty);
+
+	QTextStream in(stdin, QIODeviceBase::ReadOnly);
+	QString password = in.readLine();
+
+	tty.c_lflag |= ECHO;
+	tcsetattr(0, TCSANOW, &tty);
+
+	return password;
 }
-
-class QIODevice;
-
-namespace Biscuit {
-	class Host;
-
-	namespace Source {
-		class FileInfo;
-
-		class Source {
-			public:
-				static Source * first_source();
-				inline const Host& host() const {
-					return this->m_host;
-				}
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) = 0;
-				virtual FileInfo next(uint16_t worker, uint16_t total_workers) = 0;
-				inline Source * next_source() {
-					return this->m_next;
-				}
-				static bool parse(const YAML::Node& node);
-				inline Source * previous_source() {
-					return this->m_previous;
-				}
-
-			protected:
-				Source(const Host& host);
-				virtual ~Source();
-
-				void configure_options(const YAML::Node& node);
-
-				Host m_host;
-				QMutex m_lock;
-				QList<QRegularExpression> m_include_pattern;
-				QList<QRegularExpression> m_exclude_pattern;
-				QList<QString> m_exclude_path;
-				QList<QString> m_exclude_dir_if;
-				bool m_exclude_other_devices = false;
-
-			private:
-				static Source * ms_first;
-				static Source * ms_last;
-				Source * m_next = nullptr;
-				Source * m_previous = nullptr;
-		};
-	}
-}
-
-#endif

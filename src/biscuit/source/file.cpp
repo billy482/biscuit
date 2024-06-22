@@ -31,7 +31,6 @@
 \***************************************************************************/
 
 #include <errno.h>
-#include <spdlog/spdlog.h>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
@@ -47,43 +46,20 @@ using namespace Biscuit::Source;
 using YAML::Node;
 
 
-File::File(const QString& path) : m_root(path) {
+File::File(const QString& path) : Source(Host::localhost()), m_root(path), m_logger(spdlog::get("core")) {
 	this->m_paths.push(QDir(path).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware));
 }
 
 
-File * File::configure(const QString& path, const Node& node) {
-	if (not node.IsMap())
+File * File::configure(const Node& file) {
+	const Node& path = file["path"];
+	if (not path.IsDefined() or not path.IsScalar())
 		return nullptr;
 
-	File * new_file = new File(path);
+	const QString filename(path.as<std::string>().c_str());
 
-	const Node& include_patterns = node["include_patterns"];
-	if (include_patterns.IsDefined() and include_patterns.IsSequence())
-		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++)
-			new_file->m_include_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
-
-	const Node& exclude_paths = node["exclude"];
-	if (exclude_paths.IsDefined() and exclude_paths.IsSequence())
-		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++)
-			new_file->m_exclude_path.append(QString::fromStdString(iter->as<std::string>()));
-
-	const Node& exclude_patterns = node["exclude_patterns"];
-	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence())
-		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++)
-			new_file->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
-
-	const Node& option = node["options"];
-	if (option.IsDefined() and option.IsMap()) {
-		const Node& exclude_other = option["exclude_other_filesystem"];
-		if (exclude_other.IsDefined() and exclude_other.IsScalar())
-			new_file->m_exclude_other_devices = exclude_other.as<bool>();
-
-		const Node& exclude_if = option["exclude_if_present"];
-		if (exclude_if.IsDefined() and exclude_if.IsSequence())
-			for (YAML::const_iterator iter = exclude_if.begin(); iter != exclude_if.end(); iter++)
-				new_file->m_exclude_dir_if.append(QString::fromStdString(iter->as<std::string>()));
-	}
+	File * new_file = new File(filename);
+	new_file->configure_options(file);
 
 	return new_file;
 }
@@ -103,27 +79,7 @@ QJsonDocument File::get_metadata(const QFileInfo& file_info) {
 	return QJsonDocument(metadata);
 }
 
-Biscuit::Host& File::host() {
-	return this->m_host;
-}
-
-const Biscuit::Host& File::host() const {
-	return this->m_host;
-}
-
-QIODevice * File::open(const FileInfo& file) {
-	QFile * new_file = new QFile(file.path());
-	if (new_file->open(QIODevice::ReadOnly))
-		return new_file;
-	else {
-		delete new_file;
-		return nullptr;
-	}
-}
-
-FileInfo File::next() {
-	auto logger = spdlog::get("core");
-
+FileInfo File::next(uint16_t, uint16_t) {
 	this->m_lock.lock();
 
 	while (not this->m_paths.isEmpty()) {
@@ -142,15 +98,15 @@ FileInfo File::next() {
 			QByteArray raw_dir = file.dir().absolutePath().toUtf8();
 			int ret_dir = lstat(raw_dir.data(), &st_dir);
 			if (ret_dir != 0)
-				logger->error("File: error while getting file information, path: {}, error: {}", raw_dir.data(), strerror(errno));
+				this->m_logger->error("File: error while getting file information, path: {}, error: {}", raw_dir.data(), strerror(errno));
 
 			QByteArray raw_file = file.absolutePath().toUtf8();
 			int ret_file = lstat(raw_file.data(), &st_file);
 			if (ret_file != 0)
-				logger->error("File: error while getting file information, path: {}, error: {}", raw_file.data(), strerror(errno));
+				this->m_logger->error("File: error while getting file information, path: {}, error: {}", raw_file.data(), strerror(errno));
 
 			if (ret_dir == 0 and ret_file == 0 and st_dir.st_dev != st_file.st_dev) {
-				logger->info("File: skipping file {} because this file is on another device", raw_file.data());
+				this->m_logger->info("File: skipping file {} because this file is on another device", raw_file.data());
 				continue;
 			}
 		}
@@ -158,8 +114,8 @@ FileInfo File::next() {
 		if (file.isFile()) {
 			if (this->m_include_pattern.size() > 0) {
 				bool has_matched = false;
-				for (auto iter = this->m_include_pattern.begin(); iter != this->m_include_pattern.end(); iter++) {
-					QRegularExpressionMatch match = iter->match(file.fileName());
+				for (const QRegularExpression& expression : this->m_include_pattern) {
+					QRegularExpressionMatch match = expression.match(file.fileName());
 					if (match.hasMatch()) {
 						has_matched = true;
 						break;
@@ -167,15 +123,15 @@ FileInfo File::next() {
 				}
 
 				if (not has_matched) {
-					logger->debug("Ignoring file: {}", file.filePath().toLocal8Bit().data());
+					this->m_logger->debug("Ignoring file: {}", file.filePath().toLocal8Bit().data());
 					continue;
 				}
 			}
 
 			if (this->m_exclude_pattern.size() > 0) {
 				bool has_matched = false;
-				for (auto iter = this->m_exclude_pattern.begin(); iter != this->m_exclude_pattern.end(); iter++) {
-					QRegularExpressionMatch match = iter->match(file.absolutePath());
+				for (const QRegularExpression& expression : this->m_exclude_pattern) {
+					QRegularExpressionMatch match = expression.match(file.fileName());
 					if (match.hasMatch()) {
 						has_matched = true;
 						break;
@@ -189,9 +145,7 @@ FileInfo File::next() {
 
 		if (this->m_exclude_path.size() > 0) {
 			bool has_matched = false;
-			for (auto iter = this->m_exclude_path.begin(); iter != this->m_exclude_path.end(); iter++) {
-				QString& path = *iter;
-
+			for (const QString& path : this->m_exclude_path) {
 				if (path.startsWith('/')) {
 					QString sub_path = file.absoluteFilePath().mid(this->m_root.absoluteFilePath().length());
 					if (sub_path == path) {
@@ -228,4 +182,14 @@ FileInfo File::next() {
 
 	this->m_lock.unlock();
 	return FileInfo();
+}
+
+QIODevice * File::open(const FileInfo& file, uint16_t) {
+	QFile * new_file = new QFile(file.path());
+	if (new_file->open(QIODevice::ReadOnly))
+		return new_file;
+	else {
+		delete new_file;
+		return nullptr;
+	}
 }

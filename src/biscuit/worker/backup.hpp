@@ -60,8 +60,11 @@ namespace Biscuit {
 				virtual void run();
 
 			private:
+				uint16_t m_id;
+				static uint16_t ms_ids;
 				const Db::BackupId& m_backup_id;
 				QMutex m_lock;
+				uint64_t m_current_file = 0;
 				QString m_current_path;
 				uint64_t m_current_position = 0;
 				uint64_t m_current_size = 0;

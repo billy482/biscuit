@@ -30,65 +30,13 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#ifndef __BISCUIT_SOURCE_SOURCE_HPP__
-#define __BISCUIT_SOURCE_SOURCE_HPP__
+#ifndef __BISCUIT_UTIL_HPP__
+#define __BISCUIT_UTIL_HPP__
 
-#include <QtCore/QList>
-#include <QtCore/QMutex>
-#include <QtCore/QRegularExpression>
 #include <QtCore/QString>
 
-#include "../host.hpp"
-
-namespace YAML {
-	class Node;
-}
-
-class QIODevice;
-
 namespace Biscuit {
-	class Host;
-
-	namespace Source {
-		class FileInfo;
-
-		class Source {
-			public:
-				static Source * first_source();
-				inline const Host& host() const {
-					return this->m_host;
-				}
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) = 0;
-				virtual FileInfo next(uint16_t worker, uint16_t total_workers) = 0;
-				inline Source * next_source() {
-					return this->m_next;
-				}
-				static bool parse(const YAML::Node& node);
-				inline Source * previous_source() {
-					return this->m_previous;
-				}
-
-			protected:
-				Source(const Host& host);
-				virtual ~Source();
-
-				void configure_options(const YAML::Node& node);
-
-				Host m_host;
-				QMutex m_lock;
-				QList<QRegularExpression> m_include_pattern;
-				QList<QRegularExpression> m_exclude_pattern;
-				QList<QString> m_exclude_path;
-				QList<QString> m_exclude_dir_if;
-				bool m_exclude_other_devices = false;
-
-			private:
-				static Source * ms_first;
-				static Source * ms_last;
-				Source * m_next = nullptr;
-				Source * m_previous = nullptr;
-		};
-	}
+	QString get_password(const QString& prompt);
 }
 
 #endif

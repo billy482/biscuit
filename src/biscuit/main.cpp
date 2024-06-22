@@ -83,8 +83,8 @@ spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
 Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 	using namespace clipp;
 
-	auto ring_buffer_sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(128);
-	auto logger = std::make_shared<spdlog::logger>("logger_name", ring_buffer_sink);
+	std::shared_ptr<spdlog::sinks::ringbuffer_sink_mt> ring_buffer_sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(128);
+	std::shared_ptr<spdlog::logger> logger = std::make_shared<spdlog::logger>("logger_name", ring_buffer_sink);
 	logger->set_level(spdlog::level::trace);
 
 	logger->info("Starting biscuit");
