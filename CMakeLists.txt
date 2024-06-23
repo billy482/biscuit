@@ -20,6 +20,7 @@ add_compile_options(-Werror -Wall -Wextra -pedantic -pipe)
 
 find_package(PkgConfig)
 pkg_check_modules(BOTAN REQUIRED botan-2)
+pkg_check_modules(LIBSSH2 REQUIRED libssh2)
 
 if(EXISTS /usr/lib/x86_64-linux-gnu/cmake/Qt6)
 	list(APPEND CMAKE_PREFIX_PATH /usr/lib/x86_64-linux-gnu/cmake)
