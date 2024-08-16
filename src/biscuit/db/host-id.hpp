@@ -40,8 +40,8 @@ namespace Biscuit {
 		class HostId : public SqlResult {
 			public:
 				HostId(SqlStatus status = SqlStatus::error);
-				HostId(SqlStatus status, const QVariant& value);
-				HostId(SqlStatus status, QVariant&& value);
+				HostId(SqlStatus status, const std::any& value);
+				HostId(SqlStatus status, std::any&& value);
 				HostId(const HostId& host_id);
 				HostId(HostId&& host_id);
 

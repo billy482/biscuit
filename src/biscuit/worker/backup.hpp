@@ -33,11 +33,7 @@
 #ifndef __BISCUIT_WORKER_BACKUP_HPP__
 #define __BISCUIT_WORKER_BACKUP_HPP__
 
-#include <QtCore/QMutex>
-#include <QtCore/QRunnable>
-#include <QtCore/QString>
-
-#include "../checksum.hpp"
+#include "worker.hpp"
 
 namespace YAML {
 	class Node;
@@ -50,22 +46,22 @@ namespace Biscuit {
 	struct Option;
 
 	namespace Worker {
-		class Backup : public QRunnable {
+		class Backup : public Worker {
 			public:
 				Backup(const Db::BackupId& backup_id);
 				Backup(const Backup& backup);
 				virtual ~Backup() = default;
 
 				static int do_backup(const YAML::Node& config, const struct Option& options);
-				virtual void run();
+				virtual void run() override;
 
 			private:
 				uint16_t m_id;
 				static uint16_t ms_ids;
 				const Db::BackupId& m_backup_id;
-				QMutex m_lock;
+				std::mutex m_lock;
 				uint64_t m_current_file = 0;
-				QString m_current_path;
+				String m_current_path;
 				uint64_t m_current_position = 0;
 				uint64_t m_current_size = 0;
 				static uint16_t ms_block_size;

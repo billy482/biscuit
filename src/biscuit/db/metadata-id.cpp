@@ -36,9 +36,9 @@ using namespace Biscuit::Db;
 
 MetadataId::MetadataId(SqlStatus status) : SqlResult(status) {}
 
-MetadataId::MetadataId(SqlStatus status, const QVariant& value) : SqlResult(status, value) {}
+MetadataId::MetadataId(SqlStatus status, const std::any& value) : SqlResult(status, value) {}
 
-MetadataId::MetadataId(SqlStatus status, QVariant&& value) : SqlResult(status, std::move(value)) {}
+MetadataId::MetadataId(SqlStatus status, std::any&& value) : SqlResult(status, std::move(value)) {}
 
 MetadataId::MetadataId(const MetadataId& metadata_id) : SqlResult(metadata_id) {}
 

@@ -33,7 +33,7 @@
 #ifndef __BISCUIT_DB_SQLITE_DRIVER_HPP__
 #define __BISCUIT_DB_SQLITE_DRIVER_HPP__
 
-#include <QtCore/QFileInfo>
+#include <filesystem>
 
 #include "../driver.hpp"
 
@@ -51,12 +51,12 @@ namespace Biscuit {
 					virtual Connection * open();
 
 				private:
-					SqliteDriver(const QFileInfo& path);
+					SqliteDriver(const std::filesystem::path& path);
 
 					bool create_db(sqlite3 * db);
 
 	 				sqlite3 * m_connection = nullptr;
-					QFileInfo m_path;
+					std::filesystem::path m_path;
 			};
 		}
 	}

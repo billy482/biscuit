@@ -40,8 +40,8 @@ namespace Biscuit {
 		class MetadataId : public SqlResult {
 			public:
 				MetadataId(SqlStatus status = SqlStatus::error);
-				MetadataId(SqlStatus status, const QVariant& value);
-				MetadataId(SqlStatus status, QVariant&& value);
+				MetadataId(SqlStatus status, const std::any& value);
+				MetadataId(SqlStatus status, std::any&& value);
 				MetadataId(const MetadataId& metadata_id);
 				MetadataId(MetadataId&& metadata_id);
 

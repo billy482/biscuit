@@ -15,19 +15,31 @@ log:
     ssh: debug
   path: backup/backup.log
 sources:
-  /build/:
-    include_patterns:
-      - '*.cpp'
-      - '*.hpp'
-    exclude:
+  - exclude:
       - /build
     exclude_patterns:
       - '.*.sw?'
+    include_patterns:
+      - '*.cpp'
+      - '*.hpp'
     options:
       exclude_other_filesystem: false
       exclude_if_present:
         - .no_backup
+    path: /build/
     sub_directories:
       'foo/bar':
         include_patterns:
           - '*.hpp'
+  - options:
+      exclude_other_filesystem: true
+      exclude_if_present:
+        - .no_backup
+      ssh:
+        connection_timeout: 20000
+        host: 172.16.0.2
+        identity_file: /home/guillaume/.ssh/id_ed25519
+        port: 22
+        use_ssh_agent: true
+        user: root
+    path: /

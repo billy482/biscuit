@@ -30,17 +30,19 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QSysInfo>
+#include <unistd.h>
 
 #include "host.hpp"
 
 using namespace Biscuit;
 
 Host::Host() {
-	this->m_hostname = QSysInfo::machineHostName();
+	char buffer[1024];
+	gethostname(buffer, sizeof(buffer));
+	this->m_hostname = buffer;
 }
 
-Host::Host(const QString& hostname) : m_hostname(hostname) {}
+Host::Host(const String& hostname) : m_hostname(hostname) {}
 
 
 Host& Host::localhost() {

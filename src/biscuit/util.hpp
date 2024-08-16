@@ -33,10 +33,10 @@
 #ifndef __BISCUIT_UTIL_HPP__
 #define __BISCUIT_UTIL_HPP__
 
-#include <QtCore/QString>
-
 namespace Biscuit {
-	QString get_password(const QString& prompt);
+	class String;
+
+	String get_password(const String& prompt);
 }
 
 #endif

@@ -30,28 +30,27 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QFileInfo>
-
 #include "file-info.hpp"
 
 using namespace Biscuit::Source;
+namespace fs = std::filesystem;
 
-FileInfo::FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, const QJsonObject& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(metadata), m_is_invalid(false) {}
+FileInfo::FileInfo(const String& path, const fs::file_time_type& modified_time, FileType type, uint64_t file_size, const nlohmann::json& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(metadata), m_is_invalid(false) {}
 
-FileInfo::FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, QJsonDocument&& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(std::move(metadata)), m_is_invalid(false) {}
+FileInfo::FileInfo(const String& path, const fs::file_time_type& modified_time, FileType type, uint64_t file_size, nlohmann::json&& metadata) : m_path(path), m_modified_time(modified_time), m_type(type), m_file_size(file_size), m_metadata(std::move(metadata)), m_is_invalid(false) {}
 
-FileInfo::FileInfo(const QFileInfo& info, const QJsonObject& metadata) : m_path(info.absoluteFilePath()), m_modified_time(info.lastModified()), m_type(FileInfo::from(info)), m_file_size(info.size()), m_metadata(metadata), m_is_invalid(not info.exists()) {}
-
-FileInfo::FileInfo(const QFileInfo& info, QJsonDocument&& metadata) : m_path(info.absoluteFilePath()), m_modified_time(info.lastModified()), m_type(FileInfo::from(info)), m_file_size(info.size()), m_metadata(std::move(metadata)), m_is_invalid(not info.exists()) {}
+FileInfo::FileInfo(const fs::path& info, const nlohmann::json& metadata) : m_path(info.c_str()), m_modified_time(fs::last_write_time(info)), m_type(FileInfo::from(info)), m_file_size(fs::file_size(info)), m_metadata(metadata), m_is_invalid(not fs::exists(info)) {}
 
 FileInfo::FileInfo(const FileInfo& info) : m_path(info.m_path), m_modified_time(info.m_modified_time), m_type(info.m_type), m_file_size(info.m_file_size), m_metadata(info.m_metadata), m_is_invalid(info.m_is_invalid) {}
 
 
-FileType FileInfo::from(const QFileInfo& file_info) {
-	if (file_info.isFile())
+FileType FileInfo::from(const std::filesystem::path& file_info) {
+	if (fs::is_regular_file(file_info))
 		return FileType::File;
-	else if (file_info.isDir())
+	else if (fs::is_directory(file_info))
 		return FileType::Directory;
+	else if (fs::is_symlink(file_info))
+		return FileType::SymLink;
 	else
 		return FileType::Unknown;
 }

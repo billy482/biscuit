@@ -40,8 +40,8 @@ namespace Biscuit {
 		class KeyId : public SqlResult {
 			public:
 				KeyId(SqlStatus status = SqlStatus::error);
-				KeyId(SqlStatus status, const QVariant& value);
-				KeyId(SqlStatus status, QVariant&& value);
+				KeyId(SqlStatus status, const std::any& value);
+				KeyId(SqlStatus status, std::any&& value);
 				KeyId(const KeyId& key_id);
 				KeyId(KeyId&& key_id);
 

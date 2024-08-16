@@ -36,10 +36,11 @@
 #include <botan/auto_rng.h>
 #include <botan/pk_keys.h>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
-#include <QtCore/QFileInfo>
+#include <vector>
 
-class QByteArray;
+#include "string.hpp"
 
 namespace YAML {
 	class Node;
@@ -49,23 +50,25 @@ namespace Biscuit {
 	class Key {
 		public:
 			Key() = default;
-			Key(const QFileInfo& filename);
+			Key(const std::filesystem::path& filename);
+			Key(const Key& key) = delete;
 			Key(Key&& key);
 			~Key() = default;
 
 			static bool configure(const YAML::Node& config);
-			QByteArray decrypt(const QByteArray& block) const;
-			QByteArray encrypt(const QByteArray& block) const;
-			QString fingerprint() const;
+			Botan::secure_vector<uint8_t> decrypt(const std::vector<uint8_t>& block) const;
+			std::vector<uint8_t> encrypt(const std::vector<uint8_t>& block) const;
+			String fingerprint() const;
 			static Key& get();
 			uint16_t key_length() const;
 			bool open_for_decrypt();
 			bool open_for_encrypt();
 
+			Key& operator =(const Key& key) = delete;
 			Key& operator =(Key&& key);
 
 		private:
-			QFileInfo m_filename;
+			std::filesystem::path m_filename;
 			mutable Botan::AutoSeeded_RNG m_rng;
 			std::unique_ptr<Botan::Private_Key> m_private_key = nullptr;
 			std::unique_ptr<Botan::Public_Key> m_public_key = nullptr;

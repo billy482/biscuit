@@ -40,8 +40,8 @@ namespace Biscuit {
 		class FileId : public SqlResult {
 			public:
 				FileId(SqlStatus status = SqlStatus::error);
-				FileId(SqlStatus status, const QVariant& value);
-				FileId(SqlStatus status, QVariant&& value);
+				FileId(SqlStatus status, const std::any& value);
+				FileId(SqlStatus status, std::any&& value);
 				FileId(const FileId& file_id);
 				FileId(FileId&& file_id);
 

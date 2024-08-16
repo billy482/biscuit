@@ -40,8 +40,8 @@ namespace Biscuit {
 		class BackupId : public SqlResult {
 			public:
 				BackupId(SqlStatus status = SqlStatus::error);
-				BackupId(SqlStatus status, const QVariant& value);
-				BackupId(SqlStatus status, QVariant&& value);
+				BackupId(SqlStatus status, const std::any& value);
+				BackupId(SqlStatus status, std::any&& value);
 				BackupId(const BackupId& backup_id);
 				BackupId(BackupId&& backup_id);
 

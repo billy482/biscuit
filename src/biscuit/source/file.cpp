@@ -31,23 +31,18 @@
 \***************************************************************************/
 
 #include <errno.h>
-#include <QtCore/QDir>
-#include <QtCore/QFile>
-#include <QtCore/QJsonDocument>
-#include <QtCore/QJsonObject>
 #include <string.h>
 #include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
 
 #include "file.hpp"
-#include "file-info.hpp"
 
 using namespace Biscuit::Source;
 using YAML::Node;
 
 
-File::File(const QString& path) : Source(Host::localhost()), m_root(path), m_logger(spdlog::get("core")) {
-	this->m_paths.push(QDir(path).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware));
+File::File(const std::string& path) : Source(Host::localhost()), m_root(std::filesystem::absolute(path)), m_logger(spdlog::get("core")) {
+	this->scan_directory(this->m_root);
 }
 
 
@@ -56,83 +51,85 @@ File * File::configure(const Node& file) {
 	if (not path.IsDefined() or not path.IsScalar())
 		return nullptr;
 
-	const QString filename(path.as<std::string>().c_str());
-
-	File * new_file = new File(filename);
+	File * new_file = new File(path.as<std::string>());
 	new_file->configure_options(file);
 
 	return new_file;
 }
 
-QJsonDocument File::get_metadata(const QFileInfo& file_info) {
-	QJsonObject md_common;
-	md_common.insert("size", QJsonValue(file_info.size()));
+nlohmann::json File::get_metadata(const std::filesystem::path& file_info) {
+	struct stat st_file;
+	int ret = lstat(file_info.c_str(), &st_file);
+	if (ret == 0)
+		return nullptr;
 
-	QJsonObject md_unix;
-	md_unix.insert("owner", QJsonValue(file_info.owner()));
-	md_unix.insert("group", QJsonValue(file_info.group()));
-
-	QJsonObject metadata;
-	metadata.insert("common", md_common);
-	metadata.insert("unix", md_unix);
-
-	return QJsonDocument(metadata);
+	return {
+		{"common", {
+			{"modified time", st_file.st_mtim.tv_sec},
+			{"size", std::filesystem::file_size(file_info)}
+		}},
+		{"unix", {
+			{"gid", st_file.st_gid},
+			{"uid", st_file.st_uid}
+		}}
+	};
 }
 
 FileInfo File::next(uint16_t, uint16_t) {
 	this->m_lock.lock();
 
-	while (not this->m_paths.isEmpty()) {
-		QFileInfoList& files = this->m_paths.top();
+	while (not this->m_paths.size() == 0) {
+		std::list<FileInfo> files = this->m_paths.back();
 		if (files.size() == 0) {
-			this->m_paths.pop();
+			this->m_paths.pop_back();
 			continue;
 		}
 
-		QFileInfo file = files.first();
+		FileInfo file = files.front();
 		files.pop_front();
 
 		if (this->m_exclude_other_devices) {
 			struct stat st_dir, st_file;
 
-			QByteArray raw_dir = file.dir().absolutePath().toUtf8();
-			int ret_dir = lstat(raw_dir.data(), &st_dir);
+			std::filesystem::path path = std::filesystem::path(std::string(file.path()));
+			std::filesystem::path parent_dir = path.parent_path();
+			int ret_dir = lstat(parent_dir.c_str(), &st_dir);
 			if (ret_dir != 0)
-				this->m_logger->error("File: error while getting file information, path: {}, error: {}", raw_dir.data(), strerror(errno));
+				this->m_logger->error("File: error while getting file information, path: {}, error: {}", parent_dir.string(), strerror(errno));
 
-			QByteArray raw_file = file.absolutePath().toUtf8();
-			int ret_file = lstat(raw_file.data(), &st_file);
+			std::filesystem::path absolute_path = std::filesystem::absolute(path);
+			int ret_file = lstat(absolute_path.c_str(), &st_file);
 			if (ret_file != 0)
-				this->m_logger->error("File: error while getting file information, path: {}, error: {}", raw_file.data(), strerror(errno));
+				this->m_logger->error("File: error while getting file information, path: {}, error: {}", absolute_path.string(), strerror(errno));
 
 			if (ret_dir == 0 and ret_file == 0 and st_dir.st_dev != st_file.st_dev) {
-				this->m_logger->info("File: skipping file {} because this file is on another device", raw_file.data());
+				this->m_logger->info("File: skipping file {} because this file is on another device", absolute_path.string());
 				continue;
 			}
 		}
 
-		if (file.isFile()) {
+		if (file.is_file()) {
 			if (this->m_include_pattern.size() > 0) {
 				bool has_matched = false;
-				for (const QRegularExpression& expression : this->m_include_pattern) {
-					QRegularExpressionMatch match = expression.match(file.fileName());
-					if (match.hasMatch()) {
+				for (const std::regex& expression : this->m_include_pattern) {
+					std::cmatch match;
+					if (std::regex_match(static_cast<const char *>(file.path()), match, expression)) {
 						has_matched = true;
 						break;
 					}
 				}
 
 				if (not has_matched) {
-					this->m_logger->debug("Ignoring file: {}", file.filePath().toLocal8Bit().data());
+					this->m_logger->debug("Ignoring file: {}", static_cast<const char *>(file.path()));
 					continue;
 				}
 			}
 
 			if (this->m_exclude_pattern.size() > 0) {
 				bool has_matched = false;
-				for (const QRegularExpression& expression : this->m_exclude_pattern) {
-					QRegularExpressionMatch match = expression.match(file.fileName());
-					if (match.hasMatch()) {
+				for (const std::regex& expression : this->m_exclude_pattern) {
+					std::cmatch match;
+					if (std::regex_match(static_cast<const char *>(file.path()), match, expression)) {
 						has_matched = true;
 						break;
 					}
@@ -145,14 +142,17 @@ FileInfo File::next(uint16_t, uint16_t) {
 
 		if (this->m_exclude_path.size() > 0) {
 			bool has_matched = false;
-			for (const QString& path : this->m_exclude_path) {
-				if (path.startsWith('/')) {
-					QString sub_path = file.absoluteFilePath().mid(this->m_root.absoluteFilePath().length());
-					if (sub_path == path) {
+			const std::filesystem::path file_path = std::filesystem::absolute(std::filesystem::path(std::string(file.path())));
+
+			for (const String& path : this->m_exclude_path) {
+				if (path.starts_with('/')) {
+					const std::string sub_path = file_path.string().substr(this->m_root.string().length());
+
+					if (sub_path == static_cast<const char *>(path)) {
 						has_matched = true;
 						break;
 					}
-				} else if (path == file.fileName()) {
+				} else if (static_cast<const char *>(path) == file_path.filename().string()) {
 					has_matched = true;
 					break;
 				}
@@ -162,17 +162,21 @@ FileInfo File::next(uint16_t, uint16_t) {
 				continue;
 		}
 		
-		if (file.isDir()) {
-			QFileInfoList files = QDir(file.absoluteFilePath()).entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::LocaleAware);
+		if (file.is_dir()) {
+			this->scan_directory(std::filesystem::path(std::string(file.path())));
 
 			bool found = false;
 			if (this->m_exclude_dir_if.size() > 0)
-				for (auto iter_file = files.begin(); iter_file != files.end() and not found; iter_file++)
-					for (auto iter = this->m_exclude_dir_if.begin(); iter != this->m_exclude_dir_if.end() and not found; iter++)
-						found = iter_file->fileName() == *iter;
+				for (std::list<FileInfo>::iterator iter_file = files.begin(); iter_file != files.end() and not found; iter_file++)
+					for (std::list<String>::iterator iter = this->m_exclude_dir_if.begin(); iter != this->m_exclude_dir_if.end() and not found; iter++) {
+						const std::filesystem::path file_name(static_cast<const char *>(iter_file->path()));
+						found = file_name.filename() == static_cast<const char *>(*iter);
+					}
 
+			/* TODO: finish this
 			if (not found and files.size() > 0)
 				this->m_paths.push(files);
+			*/
 		}
 
 		this->m_lock.unlock();

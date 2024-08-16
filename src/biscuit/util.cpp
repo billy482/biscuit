@@ -30,27 +30,28 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QString>
-#include <QtCore/QTextStream>
+#include <iostream>
 #include <termios.h>
 
+#include "string.hpp"
 #include "util.hpp"
 
-QString Biscuit::get_password(const QString& prompt) {
-	QTextStream out(stdout, QIODeviceBase::WriteOnly);
-	out << prompt << ": ";
-	out.flush();
+using Biscuit::String;
+
+String Biscuit::get_password(const String& prompt) {
+	std::cout << prompt << ": " << std::flush;
 
 	struct termios tty;
 	tcgetattr(0, &tty);
 	tty.c_lflag &= ~ECHO;
 	tcsetattr(0, TCSANOW, &tty);
 
-	QTextStream in(stdin, QIODeviceBase::ReadOnly);
-	QString password = in.readLine();
+	std::string input;
+	std::cin >> input;
 
 	tty.c_lflag |= ECHO;
 	tcsetattr(0, TCSANOW, &tty);
+	std::cout << std::endl;
 
-	return password;
+	return std::cin.fail() ? String() : String(input.c_str());
 }

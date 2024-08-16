@@ -33,7 +33,7 @@
 #ifndef __BISCUIT_DB_DRIVER_HPP__
 #define __BISCUIT_DB_DRIVER_HPP__
 
-#include <QtCore/QString>
+#include "../string.hpp"
 
 namespace YAML {
 	class Node;
@@ -50,17 +50,17 @@ namespace Biscuit {
 				virtual bool close() = 0;
 				static bool configure(const YAML::Node& node);
 				static Driver * get();
-				inline const QString& name() const {
+				inline const String& name() const {
 					return this->m_name;
 				}
 				virtual Connection * open() = 0;
 
 			protected:
-				Driver(const QString& name);
+				Driver(const String& name);
 
 			private:
 				static Driver * ms_instance;
-				QString m_name;
+				String m_name;
 		};
 	}
 }

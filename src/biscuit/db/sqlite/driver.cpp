@@ -32,7 +32,6 @@
 
 #include <spdlog/spdlog.h>
 #include <sqlite3.h>
-#include <QtCore/QMutex>
 #include <yaml-cpp/yaml.h>
 
 #include "connection.hpp"
@@ -42,16 +41,15 @@ using namespace Biscuit::Db::Sqlite;
 using Biscuit::Db::Connection;
 using YAML::Node;
 
-SqliteDriver::SqliteDriver(const QFileInfo& path) : Driver("sqlite"), m_path(path) {
-	auto logger = spdlog::get("database");
+SqliteDriver::SqliteDriver(const std::filesystem::path& path) : Driver("sqlite"), m_path(path) {
+	std::shared_ptr<spdlog::logger> logger = spdlog::get("database");
 	logger->info("Using Sqlite database (version: {})", sqlite3_libversion());
 
 	sqlite3 * connection = nullptr;
-	QByteArray filename = this->m_path.absoluteFilePath().toUtf8();
-	logger->debug("Opening database {}", filename.data());
-	int ret = sqlite3_open_v2(filename.data(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
+	logger->debug("Opening database {}", this->m_path.string());
+	int ret = sqlite3_open_v2(this->m_path.c_str(), &connection, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr);
 	if (ret != 0) {
-		logger->error("Error while opening database {} because {}", filename.data(), sqlite3_errmsg(connection));
+		logger->error("Error while opening database {} because {}", this->m_path.string(), sqlite3_errmsg(connection));
 		sqlite3_close_v2(connection);
 	}
 
@@ -105,7 +103,7 @@ SqliteDriver * SqliteDriver::configure(const Node& node) {
 	if (not path.IsScalar())
 		return nullptr;
 
-	return new SqliteDriver(QFileInfo(path.as<std::string>().c_str()));
+	return new SqliteDriver(path.as<std::string>());
 }
 
 bool SqliteDriver::create_db(sqlite3 * connection) {

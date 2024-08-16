@@ -36,9 +36,9 @@ using namespace Biscuit::Db;
 
 HostId::HostId(SqlStatus status) : SqlResult(status) {}
 
-HostId::HostId(SqlStatus status, const QVariant& value) : SqlResult(status, value) {}
+HostId::HostId(SqlStatus status, const std::any& value) : SqlResult(status, value) {}
 
-HostId::HostId(SqlStatus status, QVariant&& value) : SqlResult(status, std::move(value)) {}
+HostId::HostId(SqlStatus status, std::any&& value) : SqlResult(status, std::move(value)) {}
 
 HostId::HostId(const HostId& host_id) : SqlResult(host_id) {}
 

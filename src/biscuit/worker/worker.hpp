@@ -30,34 +30,21 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QString>
+#ifndef __BISCUIT_WORKER_WORKER_HPP__
+#define __BISCUIT_WORKER_WORKER_HPP__
 
-#include "checksum.hpp"
+namespace Biscuit {
+	namespace Worker {
+		class Worker {
+			public:
+				virtual ~Worker() = default;
 
-const Biscuit::Checksum * Biscuit::Checksum::find(const QString& name, bool& found) {
-	static struct Checksum algos[] = {
-		{ "md4",      QCryptographicHash::Md4 },
-		{ "md5",      QCryptographicHash::Md5 },
-		{ "sha1",     QCryptographicHash::Sha1 },
-		{ "sha224",   QCryptographicHash::Sha224 },
-		{ "sha256",   QCryptographicHash::Sha256 },
-		{ "sha384",   QCryptographicHash::Sha384 },
-		{ "sha512",   QCryptographicHash::Sha512 },
-		{ "sha3-224", QCryptographicHash::Sha3_224 },
-		{ "sha3-256", QCryptographicHash::Sha3_256 },
-		{ "sha3-384", QCryptographicHash::Sha3_384 },
-		{ "sha3-512", QCryptographicHash::Sha3_512 },
+				virtual void run() = 0;
 
-		{ nullptr, QCryptographicHash::Md4 }
-	};
-
-	QByteArray raw_name = name.toUtf8();
-	for (struct Checksum * ptr = algos; ptr->name != nullptr; ptr++)
-		if (raw_name == ptr->name) {
-			found = true;
-			return ptr;
-		}
-
-	found = false;
-	return algos + 2;
+			protected:
+				Worker() = default;
+		};
+	}
 }
+
+#endif

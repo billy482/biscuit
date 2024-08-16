@@ -33,7 +33,7 @@
 #ifndef __BISCUIT_DB_SQLRESULT_HPP__
 #define __BISCUIT_DB_SQLRESULT_HPP__
 
-#include <QtCore/QVariant>
+#include <any>
 
 namespace Biscuit {
 	namespace Db {
@@ -54,14 +54,14 @@ namespace Biscuit {
 				inline SqlStatus status() const {
 					return this->m_status;
 				}
-				inline const QVariant& value() const {
+				inline const std::any& value() const {
 					return this->m_value;
 				}
 
 			protected:
 				SqlResult(SqlStatus status = SqlStatus::error);
-				SqlResult(SqlStatus status, const QVariant& value);
-				SqlResult(SqlStatus status, QVariant&& value);
+				SqlResult(SqlStatus status, const std::any& value);
+				SqlResult(SqlStatus status, std::any&& value);
 				SqlResult(const SqlResult& result);
 				SqlResult(SqlResult&& result);
 
@@ -69,7 +69,7 @@ namespace Biscuit {
 				void move(SqlResult&& src);
 
 				SqlStatus m_status;
-				QVariant m_value;
+				std::any m_value;
 		};
 	}
 }

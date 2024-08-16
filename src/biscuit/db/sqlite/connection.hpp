@@ -33,10 +33,10 @@
 #ifndef __BISCUIT_DB_SQLITE_CONNECTION_HPP__
 #define __BISCUIT_DB_SQLITE_CONNECTION_HPP__
 
+#include <map>
+
 #include "query.hpp"
 #include "../connection.hpp"
-
-#include <QtCore/QHash>
 
 typedef struct sqlite3 sqlite3;
 
@@ -52,26 +52,26 @@ namespace Biscuit {
 
 					virtual bool connected();
 					virtual bool finish_backup(const BackupId& backup_id);
-					virtual BlockId get_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
+					virtual BlockId get_block(const std::vector<uint8_t>& digest, const String& hash_algo, const KeyId& key);
 					virtual FileId get_file(const Source::FileInfo& file_info, const HostId& host);
-					virtual MetadataId get_metadata(const QByteArray& digest, const QString& hash_algo);
-					virtual bool has_block(const QByteArray& digest, const QString& hash_algo, const KeyId& key);
-					virtual BlockId insert_block(const QByteArray& block, const QByteArray& digest, const QString& hash_algo, const KeyId& key);
+					virtual MetadataId get_metadata(const std::vector<uint8_t>& digest, const String& hash_algo);
+					virtual bool has_block(const std::vector<uint8_t>& digest, const String& hash_algo, const KeyId& key);
+					virtual BlockId insert_block(const std::vector<uint8_t>& block, const std::vector<uint8_t>& digest, const String& hash_algo, const KeyId& key);
 					virtual FileId insert_file(const Source::FileInfo& file_info, const HostId& host);
-					virtual MetadataId insert_metadata(const QByteArray& data, const QByteArray& digest, const QString& hash_algo);
+					virtual MetadataId insert_metadata(const std::vector<uint8_t>& data, const std::vector<uint8_t>& digest, const String& hash_algo);
 					virtual bool is_newer_or_not_exists(const Source::FileInfo& file_info, const HostId& host_id);
 					virtual bool link_file_to_backup(const FileId& file_id, const BackupId& backup_id, const MetadataId& metadata_id);
-					virtual bool link_file_to_block(const FileId& file_id, const BlockId& block_id, quint32 sequence);
+					virtual bool link_file_to_block(const FileId& file_id, const BlockId& block_id, uint64_t sequence);
 					virtual BackupId start_backup();
 					virtual HostId synchronize_host(const Host& host);
 					virtual KeyId synchronize_key(const Key &key);
 
 				private:
-					sqlite3_stmt * prepare_query(const QString& query_name, const QString& query);
+					sqlite3_stmt * prepare_query(const String& query_name, const String& query);
 					void print_error();
 
 					sqlite3 * m_connection;
-					QHash<QString, SqliteQuery> m_prepared_statement;
+					std::map<String, SqliteQuery> m_prepared_statement;
 			};
 		}
 	}

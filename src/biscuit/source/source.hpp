@@ -33,10 +33,9 @@
 #ifndef __BISCUIT_SOURCE_SOURCE_HPP__
 #define __BISCUIT_SOURCE_SOURCE_HPP__
 
-#include <QtCore/QList>
-#include <QtCore/QMutex>
-#include <QtCore/QRegularExpression>
-#include <QtCore/QString>
+#include <list>
+#include <mutex>
+#include <regex>
 
 #include "../host.hpp"
 
@@ -44,13 +43,12 @@ namespace YAML {
 	class Node;
 }
 
-class QIODevice;
-
 namespace Biscuit {
 	class Host;
 
 	namespace Source {
 		class FileInfo;
+		class StreamReader;
 
 		class Source {
 			public:
@@ -58,7 +56,7 @@ namespace Biscuit {
 				inline const Host& host() const {
 					return this->m_host;
 				}
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) = 0;
+				virtual StreamReader * open(const FileInfo& file, uint16_t worker) = 0;
 				virtual FileInfo next(uint16_t worker, uint16_t total_workers) = 0;
 				inline Source * next_source() {
 					return this->m_next;
@@ -75,11 +73,11 @@ namespace Biscuit {
 				void configure_options(const YAML::Node& node);
 
 				Host m_host;
-				QMutex m_lock;
-				QList<QRegularExpression> m_include_pattern;
-				QList<QRegularExpression> m_exclude_pattern;
-				QList<QString> m_exclude_path;
-				QList<QString> m_exclude_dir_if;
+				std::mutex m_lock;
+				std::list<std::regex> m_include_pattern;
+				std::list<std::regex> m_exclude_pattern;
+				std::list<String> m_exclude_path;
+				std::list<String> m_exclude_dir_if;
 				bool m_exclude_other_devices = false;
 
 			private:

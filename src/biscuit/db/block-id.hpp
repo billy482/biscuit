@@ -40,8 +40,8 @@ namespace Biscuit {
 		class BlockId : public SqlResult {
 			public:
 				BlockId(SqlStatus status = SqlStatus::error);
-				BlockId(SqlStatus status, const QVariant& value);
-				BlockId(SqlStatus status, QVariant&& value);
+				BlockId(SqlStatus status, const std::any& value);
+				BlockId(SqlStatus status, std::any&& value);
 				BlockId(const BlockId& block_id);
 				BlockId(BlockId&& block_id);
 

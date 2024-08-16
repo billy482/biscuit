@@ -36,9 +36,9 @@ using namespace Biscuit::Db;
 
 BlockId::BlockId(SqlStatus status) : SqlResult(status) {}
 
-BlockId::BlockId(SqlStatus status, const QVariant& value) : SqlResult(status, value) {}
+BlockId::BlockId(SqlStatus status, const std::any& value) : SqlResult(status, value) {}
 
-BlockId::BlockId(SqlStatus status, QVariant&& value) : SqlResult(status, std::move(value)) {}
+BlockId::BlockId(SqlStatus status, std::any&& value) : SqlResult(status, std::move(value)) {}
 
 BlockId::BlockId(const BlockId& block_id) : SqlResult(block_id) {}
 

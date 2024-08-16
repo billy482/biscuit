@@ -36,9 +36,9 @@ using namespace Biscuit::Db;
 
 FileId::FileId(SqlStatus status) : SqlResult(status) {}
 
-FileId::FileId(SqlStatus status, const QVariant& value) : SqlResult(status, value) {}
+FileId::FileId(SqlStatus status, const std::any& value) : SqlResult(status, value) {}
 
-FileId::FileId(SqlStatus status, QVariant&& value) : SqlResult(status, std::move(value)) {}
+FileId::FileId(SqlStatus status, std::any&& value) : SqlResult(status, std::move(value)) {}
 
 FileId::FileId(const FileId& file_id) : SqlResult(file_id) {}
 

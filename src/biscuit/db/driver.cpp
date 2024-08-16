@@ -42,7 +42,7 @@ using YAML::Node;
 
 Driver * Driver::ms_instance = nullptr;
 
-Driver::Driver(const QString& name) : m_name(name) {}
+Driver::Driver(const String& name) : m_name(name) {}
 
 Driver::~Driver() {
 	if (this == Driver::ms_instance)
@@ -51,19 +51,19 @@ Driver::~Driver() {
 
 
 bool Driver::configure(const Node& node) {
-	auto logger = spdlog::get("database");
+	std::shared_ptr<spdlog::logger> logger = spdlog::get("database");
 	const Node& driver = node["driver"];
 	if (not driver.IsScalar()) {
 		logger->error("Error: driver is not a scalar");
 		return false;
 	}
 
-	QString str_driver(driver.as<std::string>().c_str());
+	std::string str_driver = driver.as<std::string>();
 	if (str_driver == "sqlite") {
 		logger->debug("Configuring sqlite driver");
 		Driver::ms_instance = SqliteDriver::configure(node);
 	} else {
-		logger->error("Error: driver \"{}\" not available", str_driver.toUtf8().data());
+		logger->error("Error: driver \"{}\" not available", str_driver);
 		return false;
 	}
 

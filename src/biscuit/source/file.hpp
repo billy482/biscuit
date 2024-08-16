@@ -33,34 +33,36 @@
 #ifndef __BISCUIT_SOURCE_FILE_HPP__
 #define __BISCUIT_SOURCE_FILE_HPP__
 
-#include <QtCore/QFileInfo>
-#include <QtCore/QStack>
+#include <filesystem>
+#include <list>
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+#include <string>
 
+#include "file-info.hpp"
 #include "source.hpp"
 
-class QJsonDocument;
+namespace Biscuit::Source {
+	class StreamReader;
 
-namespace Biscuit {
-	namespace Source {
-		class File : public Source {
-			public:
-				virtual ~File() = default;
+	class File : public Source {
+		public:
+			virtual ~File() = default;
 
-				static File * configure(const YAML::Node& file);
-				virtual FileInfo next(uint16_t worker, uint16_t total_workers) override;
-				virtual QIODevice * open(const FileInfo& file, uint16_t worker) override;
+			static File * configure(const YAML::Node& file);
+			virtual FileInfo next(uint16_t worker, uint16_t total_workers) override;
+			virtual StreamReader * open(const FileInfo& file, uint16_t worker) override;
 
-			private:
-				File(const QString& path);
+		private:
+			File(const std::string& path);
 
-				QJsonDocument get_metadata(const QFileInfo& info);
+			nlohmann::json get_metadata(const std::filesystem::path& info);
+			void scan_directory(const std::filesystem::path& path);
 
-				QFileInfo m_root;
-				QStack<QFileInfoList> m_paths;
-				std::shared_ptr<spdlog::logger> m_logger;
-		};
-	}
+			std::filesystem::path m_root;
+			std::list<std::list<FileInfo>> m_paths;
+			std::shared_ptr<spdlog::logger> m_logger;
+	};
 }
 
 #endif

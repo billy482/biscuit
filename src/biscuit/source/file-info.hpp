@@ -33,11 +33,10 @@
 #ifndef __BISCUIT_SOURCE_FILEINFO_HPP__
 #define __BISCUIT_SOURCE_FILEINFO_HPP__
 
-#include <QtCore/QDateTime>
-#include <QtCore/QJsonDocument>
-#include <QtCore/QString>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 
-class QFileInfo;
+#include "../string.hpp"
 
 namespace Biscuit {
 	namespace Source {
@@ -51,13 +50,12 @@ namespace Biscuit {
 		class FileInfo {
 			public:
 				FileInfo() = default;
-				FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, const QJsonObject& metadata);
-				FileInfo(const QString& path, const QDateTime& modified_time, FileType type, uint64_t file_size, QJsonDocument&& metadata);
-				FileInfo(const QFileInfo& info, const QJsonObject& metadata);
-				FileInfo(const QFileInfo& info, QJsonDocument&& metadata);
+				FileInfo(const String& path, const std::filesystem::file_time_type& modified_time, FileType type, uint64_t file_size, const nlohmann::json& metadata);
+				FileInfo(const String& path, const std::filesystem::file_time_type& modified_time, FileType type, uint64_t file_size, nlohmann::json&& metadata);
+				FileInfo(const std::filesystem::path& info, const nlohmann::json& metadata);
 				FileInfo(const FileInfo& info);
 
-				static FileType from(const QFileInfo& file_info);
+				static FileType from(const std::filesystem::path& file_info);
 				inline uint64_t file_size() const {
 					return this->m_file_size;
 				}
@@ -73,13 +71,13 @@ namespace Biscuit {
 				inline bool is_invalid() const {
 					return this->m_is_invalid;
 				}
-				inline const QJsonDocument& metadata() const {
+				inline const nlohmann::json& metadata() const {
 					return this->m_metadata;
 				}
-				inline const QDateTime& modified_time() const {
+				inline const std::filesystem::file_time_type& modified_time() const {
 					return this->m_modified_time;
 				}
-				inline const QString& path() const {
+				inline const String& path() const {
 					return this->m_path;
 				}
 				inline FileType type() const {
@@ -90,11 +88,11 @@ namespace Biscuit {
 				bool operator <(const FileInfo& info) const;
 
 			private:
-				QString m_path;
-				QDateTime m_modified_time;
+				String m_path;
+				std::filesystem::file_time_type m_modified_time;
 				FileType m_type;
 				uint64_t m_file_size = 0;
-				QJsonDocument m_metadata;
+				nlohmann::json m_metadata;
 				bool m_is_invalid = true;
 		};
 	}

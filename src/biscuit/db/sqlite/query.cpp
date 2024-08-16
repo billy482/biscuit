@@ -36,9 +36,9 @@
 
 using namespace Biscuit::Db::Sqlite;
 
-SqliteQuery::SqliteQuery(const QString& query, sqlite3 * connection) : m_connection(connection), m_query(query.toUtf8()) {
+SqliteQuery::SqliteQuery(const String& query, sqlite3 * connection) : m_connection(connection), m_query(query) {
 	sqlite3_stmt * statement = nullptr;
-	int ret = sqlite3_prepare(connection, this->m_query.data(), this->m_query.length(), &statement, nullptr);
+	int ret = sqlite3_prepare(connection, this->m_query, this->m_query.utf8_length(), &statement, nullptr);
 	if (ret == SQLITE_ERROR) {
 		sqlite3_finalize(statement);
 		this->m_has_error = true;
@@ -48,7 +48,7 @@ SqliteQuery::SqliteQuery(const QString& query, sqlite3 * connection) : m_connect
 
 SqliteQuery::SqliteQuery(const SqliteQuery& query) : m_connection(query.m_connection), m_query(query.m_query) {
 	sqlite3_stmt * statement = nullptr;
-	int ret = sqlite3_prepare(this->m_connection, this->m_query.data(), this->m_query.length(), &statement, nullptr);
+	int ret = sqlite3_prepare(this->m_connection, this->m_query, this->m_query.utf8_length(), &statement, nullptr);
 	if (ret == SQLITE_ERROR) {
 		sqlite3_finalize(statement);
 		this->m_has_error = true;
@@ -56,7 +56,7 @@ SqliteQuery::SqliteQuery(const SqliteQuery& query) : m_connection(query.m_connec
 		this->m_statement = statement;
 }
 
-SqliteQuery::SqliteQuery(SqliteQuery&& query) : m_connection(query.m_connection), m_query(std::move(query.m_query)), m_statement(query.m_statement), m_has_error(query.m_has_error) {
+SqliteQuery::SqliteQuery(SqliteQuery&& query) : m_connection(query.m_connection), m_query(query.m_query), m_statement(query.m_statement), m_has_error(query.m_has_error) {
 	query.m_statement = nullptr;
 }
 
@@ -74,7 +74,7 @@ SqliteQuery& SqliteQuery::operator=(const SqliteQuery& query) {
 		sqlite3_finalize(this->m_statement);
 
 	sqlite3_stmt * statement = nullptr;
-	int ret = sqlite3_prepare(this->m_connection, this->m_query.data(), this->m_query.length(), &statement, nullptr);
+	int ret = sqlite3_prepare(this->m_connection, this->m_query, this->m_query.utf8_length(), &statement, nullptr);
 	if (ret == SQLITE_ERROR) {
 		sqlite3_finalize(statement);
 		this->m_has_error = true;
@@ -88,7 +88,7 @@ SqliteQuery& SqliteQuery::operator=(const SqliteQuery& query) {
 
 SqliteQuery& SqliteQuery::operator=(SqliteQuery&& query) {
 	this->m_connection = query.m_connection;
-	this->m_query = std::move(this->m_query);
+	this->m_query = this->m_query;
 	this->m_has_error = query.m_has_error;
 
 	if (this->m_statement != nullptr)

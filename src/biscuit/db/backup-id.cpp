@@ -36,9 +36,9 @@ using namespace Biscuit::Db;
 
 BackupId::BackupId(SqlStatus status) : SqlResult(status) {}
 
-BackupId::BackupId(SqlStatus status, const QVariant& value) : SqlResult(status, value) {}
+BackupId::BackupId(SqlStatus status, const std::any& value) : SqlResult(status, value) {}
 
-BackupId::BackupId(SqlStatus status, QVariant&& value) : SqlResult(status, std::move(value)) {}
+BackupId::BackupId(SqlStatus status, std::any&& value) : SqlResult(status, std::move(value)) {}
 
 BackupId::BackupId(const BackupId& backup_id) : SqlResult(backup_id) {}
 
