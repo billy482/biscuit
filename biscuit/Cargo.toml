@@ -8,3 +8,6 @@ version = "0.1.0"
 
 [dependencies]
 clap = { features = ["derive"], version = "4.0" }
+serde = "1.0"
+serde_yml = "0.0.11"
+spdlog-rs = "0.3"
