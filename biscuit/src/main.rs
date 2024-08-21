@@ -33,8 +33,9 @@ fn main() {
 	if config.is_err() {
 		eprintln!("Error while loading configuration file: {}", &config_file);
 		match config.err().unwrap() {
-			LoggerInitError::IoError(err) => eprint!("because of IO error: {}", err),
-			LoggerInitError::YAML(err) => eprint!("because of yaml error: {}", err)
+			LoggerInitError::IO(err) => eprint!("because of IO error: {}", err),
+			LoggerInitError::SpdLog(err) => eprintln!("because of spdlog error: {}", err),
+			LoggerInitError::Yaml(err) => eprint!("because of yaml error: {}", err)
 		}
 		return;
 	}

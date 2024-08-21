@@ -10,4 +10,6 @@ version = "0.1.0"
 clap = { features = ["derive"], version = "4.0" }
 serde = "1.0"
 serde_yml = "0.0.11"
+sha1 = "0.10"
+sha2 = "0.10"
 spdlog-rs = "0.3"
