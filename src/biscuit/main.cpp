@@ -38,6 +38,8 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <yaml-cpp/yaml.h>
 
+#include "string.hpp"
+
 /*
 #include "db/connection.hpp"
 #include "db/driver.hpp"
@@ -50,7 +52,7 @@
 namespace Biscuit {
 	enum class modes {backup, exit, help, restore};
 
-	spdlog::level::level_enum find_log_level(const std::string& level);
+	spdlog::level::level_enum find_log_level(const String& level);
 	modes parse_arg(int argc, char * argv[]);
 
 	static YAML::Node configuration;
@@ -58,10 +60,12 @@ namespace Biscuit {
 	// static struct Option options;
 }
 
+using Biscuit::String;
 
-spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
+
+spdlog::level::level_enum Biscuit::find_log_level(const String& level) {
 	static struct levels {
-		const char * name;
+		String name;
 		spdlog::level::level_enum value;
 	} levels[] = {
 		{ "trace", spdlog::level::trace },
@@ -72,10 +76,10 @@ spdlog::level::level_enum Biscuit::find_log_level(const std::string& level) {
 		{ "critical", spdlog::level::critical },
 		{ "off", spdlog::level::off },
 
-		{ nullptr, spdlog::level::off }
+		{ String(), spdlog::level::off }
 	};
 
-	for (struct levels * ptr = levels; ptr->name != nullptr; ptr++)
+	for (struct levels * ptr = levels; not ptr->name.is_null(); ptr++)
 		if (level == ptr->name)
 			return ptr->value;
 
@@ -143,7 +147,7 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 							const YAML::Node& node_module = node_level[module];
 							spdlog::level::level_enum level = spdlog::level::warn;
 							if (node_module.IsDefined() and node_module.IsScalar())
-								level = find_log_level(node_module.as<std::string>());
+								level = find_log_level(node_module.as<std::string>().c_str());
 
 							std::shared_ptr<spdlog::logger> logger = std::make_shared<spdlog::logger>(module, daily_sink);
 							logger->set_level(level);

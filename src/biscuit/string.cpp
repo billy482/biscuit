@@ -32,6 +32,8 @@
 
 // sscanf, vsnprintf
 #include <cstdio>
+// mutex
+#include <mutex>
 // va_list
 #include <stdarg.h>
 
@@ -44,11 +46,8 @@ namespace Biscuit {
 		public:
 			virtual ~StringPrivate() = default;
 
-			virtual bool canConcatenate() const;
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const = 0;
+			virtual bool can_concatenate() const;
 			static StringPrivate * create(const char * string);
-			static StringPrivate * create(const char * string, uint32_t max_length);
-			StringPrivate * duplicate(uint32_t max_unicode, uint32_t length, uint32_t offset) const;
 			virtual uint32_t get(uint32_t offset) const = 0;
 			inline uint32_t length() const {
 				return this->mStringPrivate_length;
@@ -57,13 +56,11 @@ namespace Biscuit {
 				return this->mStringPrivate_refs;
 			}
 			void release() const;
-			virtual void set(uint32_t offset, uint32_t unicode) = 0;
-			StringPrivate * setWritable(uint32_t unicode);
 			StringPrivate * share();
 			virtual StringPrivate * substring(uint32_t offset);
 			virtual StringPrivate * substring(uint32_t offset, uint32_t length);
-			virtual StringPrivateConcatenate * toConcatenate();
-			inline uint32_t utf8Length() const {
+			virtual StringPrivateConcatenate * to_concatenate();
+			inline uint32_t utf8_length() const {
 				return this->mStringPrivate_utf8_length;
 			}
 			static StringPrivate * vsprintf(const char * format, va_list params);
@@ -71,33 +68,28 @@ namespace Biscuit {
 		protected:
 			StringPrivate() = default;
 
-			void utf8Change(uint32_t new_unicode);
-			void utf8Change(uint32_t old_unicode, uint32_t new_unicode);
-
 			uint32_t mStringPrivate_length = 0;
 			uint32_t mStringPrivate_utf8_length = 0;
 			mutable uint32_t mStringPrivate_refs = 1;
 
 		private:
-			static StringPrivate * vsprintfHeap(const char * format, va_list params);
-			static StringPrivate * vsprintfStack(const char * format, va_list params, uint32_t length);
-			static StringPrivate * vsprintfStatic(const char * format, va_list params);
+			static StringPrivate * vsprintf_heap(const char * format, va_list params);
+			static StringPrivate * vsprintf_stack(const char * format, va_list params, uint32_t length);
+			static StringPrivate * vsprintf_static(const char * format, va_list params);
 	};
 
 	class StringPrivateConcatenate : public StringPrivate {
 		public:
-			StringPrivateConcatenate();
+			StringPrivateConcatenate() = default;
 			virtual ~StringPrivateConcatenate();
 
 			void append(StringPrivate * sp, bool share);
 			void append(StringPrivateConcatenate * sp);
-			virtual bool canConcatenate() const;
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const;
+			virtual bool can_concatenate() const;
 			virtual uint32_t get(uint32_t offset) const;
-			virtual void set(uint32_t offset, uint32_t unicode);
 			virtual StringPrivate * substring(uint32_t offset);
 			virtual StringPrivate * substring(uint32_t offset, uint32_t length);
-			virtual StringPrivateConcatenate * toConcatenate();
+			virtual StringPrivateConcatenate * to_concatenate();
 
 		private:
 			class StringPrivateConcatenateNode {
@@ -117,7 +109,9 @@ namespace Biscuit {
 					inline const StringPrivateConcatenateNode * next() const {
 						return this->mStringPrivateConcatenateNode_next;
 					}
-					void setNext(StringPrivateConcatenateNode * next);
+					inline void setNext(StringPrivateConcatenateNode * next) {
+						this->mStringPrivateConcatenateNode_next = next;
+					}
 
 				private:
 					StringPrivate * mStringPrivateConcatenateNode_data;
@@ -131,12 +125,9 @@ namespace Biscuit {
 	class StringPrivateFourByte : public StringPrivate {
 		public:
 			StringPrivateFourByte(const char * string, uint32_t length);
-			StringPrivateFourByte(const StringPrivate * sp, uint32_t length, uint32_t offset);
 			virtual ~StringPrivateFourByte();
 
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const;
 			virtual uint32_t get(uint32_t offset) const;
-			virtual void set(uint32_t offset, uint32_t unicode);
 
 		protected:
 			uint32_t * mStringPrivateFourByte_buffer;
@@ -145,12 +136,9 @@ namespace Biscuit {
 	class StringPrivateOneByte : public StringPrivate {
 		public:
 			StringPrivateOneByte(const char * string, uint32_t length);
-			StringPrivateOneByte(const StringPrivate * sp, uint32_t length, uint32_t offset);
 			virtual ~StringPrivateOneByte();
 
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const;
 			virtual uint32_t get(uint32_t offset) const;
-			virtual void set(uint32_t offset, uint32_t unicode);
 
 		private:
 			uint8_t * mStringPrivateOneByte_buffer;
@@ -162,9 +150,7 @@ namespace Biscuit {
 			StringPrivateSubstring(StringPrivate * sp, uint32_t length, uint32_t offset);
 			virtual ~StringPrivateSubstring();
 
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const;
 			virtual uint32_t get(uint32_t offset) const;
-			virtual void set(uint32_t offset, uint32_t unicode);
 			virtual StringPrivate * substring(uint32_t offset);
 			virtual StringPrivate * substring(uint32_t offset, uint32_t length);
 
@@ -177,12 +163,9 @@ namespace Biscuit {
 	class StringPrivateTwoByte : public StringPrivate {
 		public:
 			StringPrivateTwoByte(const char * string, uint32_t length);
-			StringPrivateTwoByte(const StringPrivate * sp, uint32_t length, uint32_t offset);
 			virtual ~StringPrivateTwoByte();
 
-			virtual bool canSet(uint32_t unicode, uint32_t length, uint32_t offset) const;
 			virtual uint32_t get(uint32_t offset) const;
-			virtual void set(uint32_t offset, uint32_t unicode);
 
 		private:
 			uint16_t * mStringPrivateTwoByte_buffer;
@@ -203,18 +186,12 @@ String::String(const char * string) : mString_is_null(string == nullptr) {
 		this->mString_data = StringPrivate::create(string);
 }
 
-String::String(const char * string, uint32_t max_length) : mString_is_null(string == nullptr) {
-	if (string != nullptr)
-		this->mString_data = StringPrivate::create(string, max_length);
-	this->mString_is_null = this->mString_data == nullptr;
-}
+String::String(StringPrivate * string) : mString_data(string), mString_is_null(string == nullptr) {}
 
 String::String(const String& string) : mString_is_null(string.mString_is_null) {
 	if (string.mString_data != nullptr)
 		this->mString_data = string.mString_data->share();
 }
-
-String::String(StringPrivate * string) : mString_data(string), mString_is_null(string == nullptr) {}
 
 String::~String() {
 	this->clear();
@@ -222,7 +199,7 @@ String::~String() {
 
 
 void String::clear() {
-	this->discardCache();
+	this->discard_cache();
 
 	if (this->mString_data != nullptr)
 		this->mString_data->release();
@@ -260,18 +237,40 @@ int8_t String::compare(const String& a, const String& b) {
 	return 0;
 }
 
-void String::discardCache() {
-	if (this->mString_cache != nullptr)
-		delete [] this->mString_cache;
-	this->mString_cache = nullptr;
+uint32_t String::count(const String& str, uint32_t offset) const {
+	const uint32_t this_length = this->length();
+	if (this_length == 0 or offset >= this_length)
+		return 0;
+
+	const uint32_t str_length = str.length();
+	if (str_length == 0 or this_length < str_length)
+		return 0;
+
+	const uint32_t first_char = str.mString_data->get(0);
+	uint32_t count = 0;
+	for (uint32_t i = offset; i + str_length <= this_length; i++) {
+		if (first_char == this->mString_data->get(i)) {
+			bool ok = true;
+
+			for (uint32_t j = 1; j < str_length and ok; j++)
+				ok = this->mString_data->get(i + j) == str.mString_data->get(j);
+
+			if (ok) {
+				count++;
+				i += str_length - 1;
+			}
+		}
+	}
+
+	return count;
 }
 
-uint32_t String::decodeFromUtf8(const char * string, bool escape) {
+uint32_t String::decode_from_utf8(const char * string, bool escape) {
 	uint8_t length;
-	return String::decodeFromUtf8(string, length, escape);
+	return String::decode_from_utf8(string, length, escape);
 }
 
-uint32_t String::decodeFromUtf8(const char * string, uint8_t& length, bool escape) {
+uint32_t String::decode_from_utf8(const char * string, uint8_t& length, bool escape) {
 	if (string == nullptr)
 		return 0;
 
@@ -321,18 +320,24 @@ uint32_t String::decodeFromUtf8(const char * string, uint8_t& length, bool escap
 	}
 }
 
-uint8_t String::decodeLengthFromUtf8(const char * string, bool escape) {
+uint8_t String::decode_length_from_utf8(const char * string, bool escape) {
 	uint8_t length = 0;
-	String::decodeFromUtf8(string, length, escape);
+	String::decode_from_utf8(string, length, escape);
 	return length;
 }
 
-int8_t String::encodeToUtf8(char * string, uint32_t length, uint32_t unicode, bool null) {
-	return String::encodeToUtf8(string, length, false, unicode, null);
+void String::discard_cache() {
+	if (this->mString_cache != nullptr)
+		delete [] this->mString_cache;
+	this->mString_cache = nullptr;
 }
 
-int8_t String::encodeToUtf8(char * string, uint32_t length, bool unescaped, uint32_t unicode, bool null) {
-	uint32_t character_length = String::utf8Length(unicode, unescaped);
+int8_t String::encode_to_utf8(char * string, uint32_t length, uint32_t unicode, bool null) {
+	return String::encode_to_utf8(string, length, false, unicode, null);
+}
+
+int8_t String::encode_to_utf8(char * string, uint32_t length, bool unescaped, uint32_t unicode, bool null) {
+	uint32_t character_length = String::utf8_length(unicode, unescaped);
 
 	if ((null and character_length + 1 > length) or character_length > length)
 		return -1;
@@ -389,7 +394,7 @@ int8_t String::encodeToUtf8(char * string, uint32_t length, bool unescaped, uint
 	}
 }
 
-bool String::endsWith(const String& end) const {
+bool String::ends_with(const String& end) const {
 	if (this->mString_is_null and end.mString_is_null)
 		return true;
 	if (this->mString_is_null)
@@ -450,7 +455,7 @@ uint64_t String::hash(const char * string) {
 	uint64_t hash = 0;
 	while (*string != '\0') {
 		uint8_t length;
-		const uint32_t character = String::decodeFromUtf8(string, length, true);
+		const uint32_t character = String::decode_from_utf8(string, length, true);
 		hash = character + (hash << 6) + (hash << 16) - hash;
 
 		string += length;
@@ -479,7 +484,7 @@ uint32_t String::length() const {
 		return this->mString_data->length();
 }
 
-String String::middleEllipsis(uint32_t length, const String& middle) const {
+String String::middle_ellipsis(uint32_t length, const String& middle) const {
 	const uint32_t str_length = this->length();
 	if (length == 0)
 		return String();
@@ -498,6 +503,37 @@ String String::middleEllipsis(uint32_t length, const String& middle) const {
 	return sp;
 }
 
+String String::replace(const String& old_str, const String& new_str) const {
+	const uint32_t this_length = this->length();
+	if (this_length == 0)
+		return *this;
+
+	const uint32_t old_length = old_str.length();
+	if (old_length == 0 or this_length < old_length)
+		return *this;
+
+	int32_t index = this->find(old_str);
+	if (index < 0)
+		return *this;
+
+	StringPrivateConcatenate * result = new StringPrivateConcatenate();
+
+	int32_t last_index = 0;
+	while (index >= 0) {
+		if (index > last_index)
+			result->append(this->mString_data->substring(last_index, index - last_index), false);
+		result->append(new_str.mString_data, true);
+
+		last_index = index + old_length;
+		index = this->find(old_str, last_index);
+	}
+
+	if (static_cast<uint32_t>(last_index) < this_length)
+		result->append(this->mString_data->substring(last_index), false);
+
+	return result;
+}
+
 String String::sprintf(const char * format, ...) {
 	va_list params;
 	va_start(params, format);
@@ -505,20 +541,6 @@ String String::sprintf(const char * format, ...) {
 	va_end(params);
 
 	return result;
-}
-
-bool String::starts_with(char letter) const {
-	if (this->mString_is_null and letter <= 0)
-		return true;
-	if (this->mString_is_null)
-		return false;
-	if (letter <= 0)
-		return true;
-
-	if (this->length() < 1)
-		return false;
-
-	return letter == this->mString_data->get(0);
 }
 
 bool String::starts_with(const String& begin) const {
@@ -589,18 +611,14 @@ String String::substring(int32_t offset, uint32_t length) const {
 		return *this;
 }
 
-String String::vsprintf(const char * format, va_list args) {
-	return StringPrivate::vsprintf(format, args);
-}
-
-uint32_t String::utf8Length() const {
+uint32_t String::utf8_length() const {
 	if (this->mString_data == nullptr)
 		return 0;
 	else
-		return this->mString_data->utf8Length();
+		return this->mString_data->utf8_length();
 }
 
-uint8_t String::utf8Length(uint32_t unicode, bool unescape) {
+uint8_t String::utf8_length(uint32_t unicode, bool unescape) {
 	if (unicode < 0x80)
 		return 1;
 	else if (unicode < 0x800)
@@ -613,6 +631,10 @@ uint8_t String::utf8Length(uint32_t unicode, bool unescape) {
 		return 4;
 	else
 		return 0;
+}
+
+String String::vsprintf(const char * format, va_list args) {
+	return StringPrivate::vsprintf(format, args);
 }
 
 
@@ -651,25 +673,25 @@ String& String::operator +=(const String& string) {
 		return *this;
 	}
 
-	this->discardCache();
+	this->discard_cache();
 
 	StringPrivateConcatenate * sp;
-	if (this->mString_data->canConcatenate()) {
+	if (this->mString_data->can_concatenate()) {
 		if (this->mString_data->refs() > 1) {
 			sp = new StringPrivateConcatenate;
-			sp->append(this->mString_data->toConcatenate());
+			sp->append(this->mString_data->to_concatenate());
 			this->mString_data->release();
 			this->mString_data = sp;
 		} else
-			sp = this->mString_data->toConcatenate();
+			sp = this->mString_data->to_concatenate();
 	} else {
 		sp = new StringPrivateConcatenate;
 		sp->append(this->mString_data, false);
 		this->mString_data = sp;
 	}
 
-	if (string.mString_data->canConcatenate())
-		sp->append(string.mString_data->toConcatenate());
+	if (string.mString_data->can_concatenate())
+		sp->append(string.mString_data->to_concatenate());
 	else
 		sp->append(string.mString_data, true);
 
@@ -688,13 +710,13 @@ String String::operator +(const String& string) const {
 
 	StringPrivateConcatenate * sp = new StringPrivateConcatenate;
 
-	if (this->mString_data->canConcatenate())
-		sp->append(this->mString_data->toConcatenate());
+	if (this->mString_data->can_concatenate())
+		sp->append(this->mString_data->to_concatenate());
 	else
 		sp->append(this->mString_data, true);
 
-	if (string.mString_data->canConcatenate())
-		sp->append(string.mString_data->toConcatenate());
+	if (string.mString_data->can_concatenate())
+		sp->append(string.mString_data->to_concatenate());
 	else
 		sp->append(string.mString_data, true);
 
@@ -706,10 +728,10 @@ String::operator const char *() const {
 		return nullptr;
 
 	if (this->mString_cache == nullptr) {
-		const uint32_t utf8_length = this->mString_data->utf8Length(), length = this->mString_data->length();
+		const uint32_t utf8_length = this->mString_data->utf8_length(), length = this->mString_data->length();
 		this->mString_cache = new char[utf8_length + 1];
 		for (uint32_t index = 0, offset = 0; index < length; index++)
-			offset += String::encodeToUtf8(this->mString_cache + offset, utf8_length - offset, this->mString_data->get(index), false);
+			offset += String::encode_to_utf8(this->mString_cache + offset, utf8_length - offset, this->mString_data->get(index), false);
 		this->mString_cache[utf8_length] = '\0';
 	}
 
@@ -718,7 +740,7 @@ String::operator const char *() const {
 
 
 
-bool StringPrivate::canConcatenate() const {
+bool StringPrivate::can_concatenate() const {
 	return false;
 }
 
@@ -729,7 +751,7 @@ StringPrivate * StringPrivate::create(const char * string) {
 
 	while (string[offset] != '\0') {
 		uint8_t char_length;
-		uint32_t character = String::decodeFromUtf8(string + offset, char_length, true);
+		uint32_t character = String::decode_from_utf8(string + offset, char_length, true);
 
 		offset += char_length;
 		length++;
@@ -746,62 +768,12 @@ StringPrivate * StringPrivate::create(const char * string) {
 		return new StringPrivateTwoByte(string, length);
 	else
 		return new StringPrivateFourByte(string, length);
-}
-
-StringPrivate * StringPrivate::create(const char * string, uint32_t max_length) {
-	uint32_t max_character = 0;
-	uint32_t length = 0;
-	uint32_t offset = 0;
-
-	while (offset < max_length and string[offset] != '\0') {
-		uint8_t char_length;
-		uint32_t character = String::decodeFromUtf8(string + offset, char_length, true);
-
-		offset += char_length;
-		length++;
-
-		if (max_character < character)
-			max_character = character;
-	}
-
-	if (max_character == 0)
-		return nullptr;
-	else if (max_character < 0x100)
-		return new StringPrivateOneByte(string, length);
-	else if (max_character < 0x10000)
-		return new StringPrivateTwoByte(string, length);
-	else
-		return new StringPrivateFourByte(string, length);
-}
-
-StringPrivate * StringPrivate::duplicate(uint32_t max_unicode, uint32_t length, uint32_t offset) const {
-	for (uint32_t i = 0; i < length; i++)
-		max_unicode |= this->get(offset + i);
-
-	StringPrivate * duplicate = nullptr;
-
-	if (max_unicode < 0x100)
-		duplicate = new StringPrivateOneByte(this, length, offset);
-	else if (max_unicode < 0x10000)
-		duplicate = new StringPrivateTwoByte(this, length, offset);
-	else
-		duplicate = new StringPrivateFourByte(this, length, offset);
-
-	this->release();
-	return duplicate;
 }
 
 void StringPrivate::release() const {
 	this->mStringPrivate_refs--;
 	if (this->mStringPrivate_refs == 0)
 		delete this;
-}
-
-StringPrivate * StringPrivate::setWritable(uint32_t unicode) {
-	if (this->mStringPrivate_refs > 1 or not this->canSet(unicode, this->mStringPrivate_length, 0))
-		return this->duplicate(unicode, this->mStringPrivate_length, 0);
-	else
-		return this;
 }
 
 StringPrivate * StringPrivate::share() {
@@ -823,16 +795,8 @@ StringPrivate * StringPrivate::substring(uint32_t offset, uint32_t length) {
 		return this->share();
 }
 
-StringPrivateConcatenate * StringPrivate::toConcatenate() {
+StringPrivateConcatenate * StringPrivate::to_concatenate() {
 	return nullptr;
-}
-
-void StringPrivate::utf8Change(uint32_t new_unicode) {
-	this->mStringPrivate_utf8_length += String::utf8Length(new_unicode, false);
-}
-
-void StringPrivate::utf8Change(uint32_t old_unicode, uint32_t new_unicode) {
-	this->mStringPrivate_utf8_length += String::utf8Length(new_unicode, false) - String::utf8Length(old_unicode, false);
 }
 
 StringPrivate * StringPrivate::vsprintf(const char * format, va_list params) {
@@ -842,20 +806,20 @@ StringPrivate * StringPrivate::vsprintf(const char * format, va_list params) {
 	va_end(cpyArgs);
 
 	if (length < 256)
-		return StringPrivate::vsprintfHeap(format, params);
+		return StringPrivate::vsprintf_heap(format, params);
 	else if (length < 1048576)
-		return StringPrivate::vsprintfStatic(format, params);
+		return StringPrivate::vsprintf_static(format, params);
 	else
-		return StringPrivate::vsprintfStack(format, params, length);
+		return StringPrivate::vsprintf_stack(format, params, length);
 }
 
-StringPrivate * StringPrivate::vsprintfHeap(const char * format, va_list params) {
+StringPrivate * StringPrivate::vsprintf_heap(const char * format, va_list params) {
 	char buffer[256];
 	vsnprintf(buffer, 256, format, params);
 	return StringPrivate::create(buffer);
 }
 
-StringPrivate * StringPrivate::vsprintfStack(const char * format, va_list params, uint32_t length) {
+StringPrivate * StringPrivate::vsprintf_stack(const char * format, va_list params, uint32_t length) {
 	char * buffer = new char[length + 1];
 	vsnprintf(buffer, length + 1, format, params);
 
@@ -864,23 +828,21 @@ StringPrivate * StringPrivate::vsprintfStack(const char * format, va_list params
 	return data;
 }
 
-StringPrivate * StringPrivate::vsprintfStatic(const char * format, va_list params) {
-	// TODO: fix me
-	// static Mutex lock;
-	// lock.lock();
+StringPrivate * StringPrivate::vsprintf_static(const char * format, va_list params) {
+	static std::mutex l;
+	l.lock();
 
 	static char buffer[1048576];
 	vsnprintf(buffer, 1048576, format, params);
 	StringPrivate * data = StringPrivate::create(buffer);
 
-	// lock.unlock();
+	l.unlock();
 
 	return data;
 }
 
 
 
-StringPrivateConcatenate::StringPrivateConcatenate() : StringPrivate() {}
 
 StringPrivateConcatenate::~StringPrivateConcatenate() {
 	while (this->mStringPrivateConcatenate_first != nullptr) {
@@ -892,8 +854,8 @@ StringPrivateConcatenate::~StringPrivateConcatenate() {
 
 
 void StringPrivateConcatenate::append(StringPrivate * sp, bool share) {
-	if (sp->canConcatenate()) {
-		this->append(sp->toConcatenate());
+	if (sp->can_concatenate()) {
+		this->append(sp->to_concatenate());
 		if (not share)
 			sp->release();
 		return;
@@ -912,7 +874,7 @@ void StringPrivateConcatenate::append(StringPrivate * sp, bool share) {
 	}
 
 	this->mStringPrivate_length += sp->length();
-	this->mStringPrivate_utf8_length += sp->utf8Length();
+	this->mStringPrivate_utf8_length += sp->utf8_length();
 }
 
 void StringPrivateConcatenate::append(StringPrivateConcatenate * sp) {
@@ -920,41 +882,8 @@ void StringPrivateConcatenate::append(StringPrivateConcatenate * sp) {
 		this->append(node->data(), true);
 }
 
-bool StringPrivateConcatenate::canConcatenate() const {
+bool StringPrivateConcatenate::can_concatenate() const {
 	return true;
-}
-
-bool StringPrivateConcatenate::canSet(uint32_t unicode, uint32_t length, uint32_t offset) const {
-	StringPrivateConcatenateNode * node = this->mStringPrivateConcatenate_first;
-
-	while (node != nullptr) {
-		const StringPrivate * sp = node->data();
-		if (sp->length() < offset)
-			offset -= sp->length();
-		else
-			break;
-
-		node = node->next();
-	}
-
-	while (node != nullptr) {
-		const StringPrivate * sp = node->data();
-
-		uint32_t length_segment = sp->length() - offset;
-		if (length_segment > length)
-			length_segment = length;
-
-		if (not sp->canSet(unicode, length_segment, offset))
-			return false;
-
-		if (length == length_segment)
-			return true;
-
-		offset = 0;
-		node = node->next();
-	}
-
-	return false;
 }
 
 uint32_t StringPrivateConcatenate::get(uint32_t offset) const {
@@ -969,18 +898,6 @@ uint32_t StringPrivateConcatenate::get(uint32_t offset) const {
 	}
 
 	return 0;
-}
-
-void StringPrivateConcatenate::set(uint32_t offset, uint32_t unicode) {
-	for (StringPrivateConcatenateNode * node = this->mStringPrivateConcatenate_first; node != nullptr; node = node->next()) {
-		StringPrivate * sp = node->data();
-
-		if (sp->length() < offset) {
-			offset -= sp->length();
-			continue;
-		} else
-			sp->set(offset, unicode);
-	}
 }
 
 StringPrivate * StringPrivateConcatenate::substring(uint32_t offset) {
@@ -1065,7 +982,7 @@ StringPrivate * StringPrivateConcatenate::substring(uint32_t offset, uint32_t le
 	return sp;
 }
 
-StringPrivateConcatenate * StringPrivateConcatenate::toConcatenate() {
+StringPrivateConcatenate * StringPrivateConcatenate::to_concatenate() {
 	return this;
 }
 
@@ -1078,11 +995,6 @@ StringPrivateConcatenate::StringPrivateConcatenateNode::~StringPrivateConcatenat
 }
 
 
-void StringPrivateConcatenate::StringPrivateConcatenateNode::setNext(StringPrivateConcatenateNode * next) {
-	this->mStringPrivateConcatenateNode_next = next;
-}
-
-
 
 StringPrivateFourByte::StringPrivateFourByte(const char * string, uint32_t length) : StringPrivate() {
 	this->mStringPrivate_length = length;
@@ -1090,20 +1002,10 @@ StringPrivateFourByte::StringPrivateFourByte(const char * string, uint32_t lengt
 
 	for (uint32_t from = 0, to = 0; to < length; to++) {
 		uint8_t character_length;
-		this->mStringPrivateFourByte_buffer[to] = String::decodeFromUtf8(string + from, character_length, true);
+		this->mStringPrivateFourByte_buffer[to] = String::decode_from_utf8(string + from, character_length, true);
 
 		from += character_length;
 		this->mStringPrivate_utf8_length += character_length;
-	}
-}
-
-StringPrivateFourByte::StringPrivateFourByte(const StringPrivate * sp, uint32_t length, uint32_t offset) : StringPrivate() {
-	this->mStringPrivate_length = length;
-	this->mStringPrivateFourByte_buffer = new uint32_t[length];
-
-	for (uint32_t i = 0; i < length; i++) {
-		this->mStringPrivateFourByte_buffer[i] = sp->get(offset + i);
-		this->mStringPrivate_utf8_length += String::utf8Length(this->mStringPrivateFourByte_buffer[i], false);
 	}
 }
 
@@ -1112,23 +1014,8 @@ StringPrivateFourByte::~StringPrivateFourByte() {
 }
 
 
-bool StringPrivateFourByte::canSet(uint32_t, uint32_t, uint32_t) const {
-	return true;
-}
-
 uint32_t StringPrivateFourByte::get(uint32_t offset) const {
 	return this->mStringPrivateFourByte_buffer[offset];
-}
-
-void StringPrivateFourByte::set(uint32_t offset, uint32_t unicode) {
-	if (offset <= this->mStringPrivate_length and unicode < 0x100) {
-		if (offset == this->mStringPrivate_length) {
-			this->mStringPrivate_length++;
-			this->utf8Change(unicode & 0xFF);
-		} else
-			this->utf8Change(this->mStringPrivateFourByte_buffer[offset], unicode & 0xFF);
-		this->mStringPrivateFourByte_buffer[offset] = unicode & 0xFF;
-	}
 }
 
 
@@ -1139,20 +1026,10 @@ StringPrivateOneByte::StringPrivateOneByte(const char * string, uint32_t length)
 
 	for (uint32_t from = 0, to = 0; to < length; to++) {
 		uint8_t character_length;
-		this->mStringPrivateOneByte_buffer[to] = String::decodeFromUtf8(string + from, character_length, true);
+		this->mStringPrivateOneByte_buffer[to] = String::decode_from_utf8(string + from, character_length, true);
 
 		from += character_length;
 		this->mStringPrivate_utf8_length += character_length;
-	}
-}
-
-StringPrivateOneByte::StringPrivateOneByte(const StringPrivate * sp, uint32_t length, uint32_t offset) : StringPrivate() {
-	this->mStringPrivate_length = length;
-	this->mStringPrivateOneByte_buffer = new uint8_t[length];
-
-	for (uint32_t i = 0; i < length; i++) {
-		this->mStringPrivateOneByte_buffer[i] = sp->get(offset + i);
-		this->mStringPrivate_utf8_length += String::utf8Length(this->mStringPrivateOneByte_buffer[i], false);
 	}
 }
 
@@ -1161,23 +1038,8 @@ StringPrivateOneByte::~StringPrivateOneByte() {
 }
 
 
-bool StringPrivateOneByte::canSet(uint32_t unicode, uint32_t, uint32_t) const {
-	return unicode < 0x100;
-}
-
 uint32_t StringPrivateOneByte::get(uint32_t offset) const {
 	return this->mStringPrivateOneByte_buffer[offset];
-}
-
-void StringPrivateOneByte::set(uint32_t offset, uint32_t unicode) {
-	if (offset <= this->mStringPrivate_length and unicode < 0x100) {
-		if (offset == this->mStringPrivate_length) {
-			this->mStringPrivate_length++;
-			this->utf8Change(unicode & 0xFF);
-		} else
-			this->utf8Change(this->mStringPrivateOneByte_buffer[offset], unicode & 0xFF);
-		this->mStringPrivateOneByte_buffer[offset] = unicode & 0xFF;
-	}
 }
 
 
@@ -1186,7 +1048,7 @@ StringPrivateSubstring::StringPrivateSubstring(StringPrivate * sp, uint32_t offs
 	const uint32_t length = this->mStringPrivateSubstring_data->length();
 	for (uint32_t pos = offset; pos < length; pos++) {
 		this->mStringPrivate_length++;
-		this->mStringPrivate_utf8_length += String::utf8Length(this->mStringPrivateSubstring_data->get(pos), false);
+		this->mStringPrivate_utf8_length += String::utf8_length(this->mStringPrivateSubstring_data->get(pos), false);
 	}
 
 	this->mStringPrivateSubstring_length = this->mStringPrivate_length;
@@ -1195,7 +1057,7 @@ StringPrivateSubstring::StringPrivateSubstring(StringPrivate * sp, uint32_t offs
 StringPrivateSubstring::StringPrivateSubstring(StringPrivate * sp, uint32_t length, uint32_t offset) : StringPrivate(), mStringPrivateSubstring_data(sp), mStringPrivateSubstring_length(length), mStringPrivateSubstring_offset(offset) {
 	for (uint32_t pos = 0; pos < length; pos++) {
 		this->mStringPrivate_length++;
-		this->mStringPrivate_utf8_length += String::utf8Length(this->mStringPrivateSubstring_data->get(offset + pos), false);
+		this->mStringPrivate_utf8_length += String::utf8_length(this->mStringPrivateSubstring_data->get(offset + pos), false);
 	}
 }
 
@@ -1204,22 +1066,8 @@ StringPrivateSubstring::~StringPrivateSubstring() {
 }
 
 
-bool StringPrivateSubstring::canSet(uint32_t unicode, uint32_t length, uint32_t offset) const {
-	length -= this->mStringPrivateSubstring_offset;
-	offset += this->mStringPrivateSubstring_offset;
-
-	if (length > this->mStringPrivateSubstring_length)
-		length = this->mStringPrivateSubstring_length;
-
-	return this->mStringPrivateSubstring_data->canSet(unicode, length, offset);
-}
-
 uint32_t StringPrivateSubstring::get(uint32_t offset) const {
 	return this->mStringPrivateSubstring_data->get(this->mStringPrivateSubstring_offset + offset);
-}
-
-void StringPrivateSubstring::set(uint32_t offset, uint32_t unicode) {
-	this->mStringPrivateSubstring_data->set(this->mStringPrivateSubstring_offset + offset, unicode);
 }
 
 StringPrivate * StringPrivateSubstring::substring(uint32_t offset) {
@@ -1238,20 +1086,10 @@ StringPrivateTwoByte::StringPrivateTwoByte(const char * string, uint32_t length)
 
 	for (uint32_t from = 0, to = 0; to < length; to++) {
 		uint8_t character_length;
-		this->mStringPrivateTwoByte_buffer[to] = String::decodeFromUtf8(string + from, character_length, true);
+		this->mStringPrivateTwoByte_buffer[to] = String::decode_from_utf8(string + from, character_length, true);
 
 		from += character_length;
 		this->mStringPrivate_utf8_length += character_length;
-	}
-}
-
-StringPrivateTwoByte::StringPrivateTwoByte(const StringPrivate * sp, uint32_t length, uint32_t offset) : StringPrivate() {
-	this->mStringPrivate_length = length;
-	this->mStringPrivateTwoByte_buffer = new uint16_t[length];
-
-	for (uint32_t i = 0; i < length; i++) {
-		this->mStringPrivateTwoByte_buffer[i] = sp->get(offset + i);
-		this->mStringPrivate_utf8_length += String::utf8Length(this->mStringPrivateTwoByte_buffer[i], false);
 	}
 }
 
@@ -1260,21 +1098,6 @@ StringPrivateTwoByte::~StringPrivateTwoByte() {
 }
 
 
-bool StringPrivateTwoByte::canSet(uint32_t unicode, uint32_t, uint32_t) const {
-	return unicode < 0x10000;
-}
-
 uint32_t StringPrivateTwoByte::get(uint32_t offset) const {
 	return this->mStringPrivateTwoByte_buffer[offset];
-}
-
-void StringPrivateTwoByte::set(uint32_t offset, uint32_t unicode) {
-	if (offset <= this->mStringPrivate_length and unicode < 0x100) {
-		if (offset == this->mStringPrivate_length) {
-			this->mStringPrivate_length++;
-			this->utf8Change(unicode & 0xFF);
-		} else
-			this->utf8Change(this->mStringPrivateTwoByte_buffer[offset], unicode & 0xFF);
-		this->mStringPrivateTwoByte_buffer[offset] = unicode & 0xFF;
-	}
 }

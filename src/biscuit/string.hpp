@@ -44,12 +44,12 @@ namespace Biscuit {
 	class String {
 		public:
 			String(const char * string = nullptr);
-			String(const char * string, uint32_t max_length);
 			String(const String& string);
 			~String();
 
 			void clear();
 			static int8_t compare(const String& a, const String& b);
+			uint32_t count(const String& str, uint32_t offset = 0) const;
 			static uint32_t decode_from_utf8(const char * string, bool escape = false);
 			static uint32_t decode_from_utf8(const char * string, uint8_t& length, bool escape = false);
 			static uint8_t decode_length_from_utf8(const char * string, bool escape = false);
@@ -63,13 +63,13 @@ namespace Biscuit {
 			}
 			static uint64_t hash(const char * string);
 			static uint64_t hash(const String& string);
-			inline bool isNull() const {
+			inline bool is_null() const {
 				return this->mString_is_null;
 			}
 			uint32_t length() const;
 			String middle_ellipsis(uint32_t length, const String& middle = String("…")) const;
+			String replace(const String& old_str, const String& new_str) const;
 			static String sprintf(const char * format, ...) __attribute__((format(printf, 1, 2)));
-			bool starts_with(char letter) const;
 			bool starts_with(const String& begin) const;
 			String substring(int32_t offset) const;
 			String substring(int32_t offset, uint32_t length) const;
@@ -108,7 +108,7 @@ namespace Biscuit {
 
 			mutable char * mString_cache = nullptr;
 			StringPrivate * mString_data = nullptr;
-			bool mString_is_null;
+			bool mString_is_null = true;
 	};
 }
 
