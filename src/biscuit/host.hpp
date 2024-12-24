@@ -41,7 +41,6 @@ namespace Biscuit {
 			Host();
 			Host(const String& hostname);
 			Host(const Host& host) = default;
-			Host(Host&& host) = default;
 			~Host() = default;
 
 			inline const String& hostname() const {
@@ -50,7 +49,6 @@ namespace Biscuit {
 			static Host& localhost();
 
 			Host& operator =(const Host& host) = default;
-			Host& operator =(Host&& host) = default;
 
 		private:
 			String m_hostname;

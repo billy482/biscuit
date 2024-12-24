@@ -38,13 +38,13 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <yaml-cpp/yaml.h>
 
+#include "key.hpp"
+#include "options.hpp"
 #include "string.hpp"
 
 /*
 #include "db/connection.hpp"
 #include "db/driver.hpp"
-#include "key.hpp"
-#include "options.hpp"
 #include "source/source.hpp"
 #include "worker/backup.hpp"
 */
@@ -57,7 +57,7 @@ namespace Biscuit {
 
 	static YAML::Node configuration;
 
-	// static struct Option options;
+	static struct Option options;
 }
 
 using Biscuit::String;
@@ -191,13 +191,13 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 			logger->critical("Failed to configure sources");
 			return modes::exit;
 		}
+		*/
 
 		const YAML::Node& node_key = Biscuit::configuration["key"];
 		if (not Key::configure(node_key)) {
 			logger->critical("Failed to configure key");
 			return modes::exit;
 		}
-		*/
 		return mode;
 	} else {
 		std::cout << make_man_page(cli, "biscuit");
