@@ -27,7 +27,7 @@
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.    *
 *                                                                           *
 *  -----------------------------------------------------------------------  *
-*  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
+*  Copyright (C) 2025, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
 #ifndef __BISCUIT_STRING_HPP__
@@ -70,6 +70,7 @@ namespace Biscuit {
 			String middle_ellipsis(uint32_t length, const String& middle = String("…")) const;
 			String replace(const String& old_str, const String& new_str) const;
 			static String sprintf(const char * format, ...) __attribute__((format(printf, 1, 2)));
+			bool starts_with(char begin) const;
 			bool starts_with(const String& begin) const;
 			String substring(int32_t offset) const;
 			String substring(int32_t offset, uint32_t length) const;

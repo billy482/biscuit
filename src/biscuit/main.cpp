@@ -27,7 +27,7 @@
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.    *
 *                                                                           *
 *  -----------------------------------------------------------------------  *
-*  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
+*  Copyright (C) 2025, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
 #include <clipp.h>
@@ -38,14 +38,14 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <yaml-cpp/yaml.h>
 
+#include "db/connection.hpp"
+#include "db/driver.hpp"
 #include "key.hpp"
 #include "options.hpp"
+#include "source/source.hpp"
 #include "string.hpp"
 
 /*
-#include "db/connection.hpp"
-#include "db/driver.hpp"
-#include "source/source.hpp"
 #include "worker/backup.hpp"
 */
 
@@ -101,8 +101,8 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 	clipp::group backup = (
 		"backup options" % (
 			command("backup").set(mode, modes::backup),
-			option("-h", "--help").set(mode, modes::help) % "Show help"
-			// option("-p", "--progress").set(options.progress) % "Display progression"
+			option("-h", "--help").set(mode, modes::help) % "Show help",
+			option("-p", "--progress").set(options.progress) % "Display progression"
 		)
 	);
 
@@ -179,7 +179,6 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 				logger->log(msg.time, msg.source, msg.level, msg.payload);
 		}
 
-		/*
 		const YAML::Node& node_db = Biscuit::configuration["database"];
 		if (not Db::Driver::configure(node_db)) {
 			logger->critical("Failed to configure database driver");
@@ -191,7 +190,6 @@ Biscuit::modes Biscuit::parse_arg(int argc, char * argv[]) {
 			logger->critical("Failed to configure sources");
 			return modes::exit;
 		}
-		*/
 
 		const YAML::Node& node_key = Biscuit::configuration["key"];
 		if (not Key::configure(node_key)) {

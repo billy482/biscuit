@@ -27,7 +27,7 @@
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.    *
 *                                                                           *
 *  -----------------------------------------------------------------------  *
-*  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
+*  Copyright (C) 2025, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
 #ifndef __BISCUIT_KEY_HPP__

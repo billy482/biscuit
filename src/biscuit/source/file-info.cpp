@@ -43,6 +43,8 @@ FileInfo::FileInfo(const fs::path& info, const nlohmann::json& metadata) : m_pat
 
 FileInfo::FileInfo(const FileInfo& info) : m_path(info.m_path), m_modified_time(info.m_modified_time), m_type(info.m_type), m_file_size(info.m_file_size), m_metadata(info.m_metadata), m_is_invalid(info.m_is_invalid) {}
 
+FileInfo::FileInfo(const FileInfo& info, const nlohmann::json& metadata) : m_path(info.m_path), m_modified_time(info.m_modified_time), m_type(info.m_type), m_file_size(info.m_file_size), m_metadata(metadata), m_is_invalid(info.m_is_invalid) {}
+
 
 FileType FileInfo::from(const std::filesystem::path& file_info) {
 	if (fs::is_regular_file(file_info))

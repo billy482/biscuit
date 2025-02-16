@@ -30,13 +30,12 @@
 *  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
-#include <QtCore/QDir>
 #include <string>
 #include <yaml-cpp/yaml.h>
 
-#include "file.hpp"
+//#include "file.hpp"
 #include "source.hpp"
-#include "ssh.hpp"
+//#include "ssh.hpp"
 
 using namespace Biscuit::Source;
 using YAML::Node;
@@ -51,20 +50,38 @@ Source::~Source() {}
 
 
 void Source::configure_options(const Node& options) {
+	auto from_wildcard = [](const std::string& pattern) {
+		std::string new_pattern = pattern;
+
+		size_t pos = new_pattern.find("?");
+		while (pos != std::string::npos) {
+			new_pattern = new_pattern.replace(pos, 1, ".");
+			pos = new_pattern.find("?");
+		}
+
+		pos = new_pattern.find("*");
+		while (pos != std::string::npos) {
+			new_pattern = new_pattern.replace(pos, 1, ".*");
+			pos = new_pattern.find("*");
+		}
+
+		return std::regex(new_pattern);
+	};
+
 	const Node& include_patterns = options["include_patterns"];
 	if (include_patterns.IsDefined() and include_patterns.IsSequence())
 		for (YAML::const_iterator iter = include_patterns.begin(); iter != include_patterns.end(); iter++)
-			this->m_include_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
+			this->m_include_pattern.push_back(from_wildcard(iter->as<std::string>()));
 
 	const Node& exclude_paths = options["exclude"];
 	if (exclude_paths.IsDefined() and exclude_paths.IsSequence())
 		for (YAML::const_iterator iter = exclude_paths.begin(); iter != exclude_paths.end(); iter++)
-			this->m_exclude_path.append(QString::fromStdString(iter->as<std::string>()));
+			this->m_exclude_path.push_back(iter->as<std::string>().c_str());
 
 	const Node& exclude_patterns = options["exclude_patterns"];
 	if (exclude_patterns.IsDefined() and exclude_patterns.IsSequence())
 		for (YAML::const_iterator iter = exclude_patterns.begin(); iter != exclude_patterns.end(); iter++)
-			this->m_exclude_pattern.append(QRegularExpression::fromWildcard(QString::fromStdString(iter->as<std::string>())));
+			this->m_exclude_pattern.push_back(from_wildcard(iter->as<std::string>()));
 
 	const Node& option = options["options"];
 	if (option.IsDefined() and option.IsMap()) {
@@ -75,7 +92,7 @@ void Source::configure_options(const Node& options) {
 		const Node& exclude_if = option["exclude_if_present"];
 		if (exclude_if.IsDefined() and exclude_if.IsSequence())
 			for (YAML::const_iterator iter = exclude_if.begin(); iter != exclude_if.end(); iter++)
-				this->m_exclude_dir_if.append(QString::fromStdString(iter->as<std::string>()));
+				this->m_exclude_dir_if.push_back(iter->as<std::string>().c_str());
 	}
 }
 
@@ -99,13 +116,13 @@ bool Source::parse(const Node& config) {
 			if (not option.IsMap())
 				return false;
 
-			const Node& ssh = option["ssh"];
-			if (ssh.IsDefined() and ssh.IsMap())
-				src = Ssh::configure(file);
+			// const Node& ssh = option["ssh"];
+			// if (ssh.IsDefined() and ssh.IsMap())
+			//	src = Ssh::configure(file);
 		}
 
-		if (src == nullptr)
-			src = File::configure(file);
+		//if (src == nullptr)
+		//	src = File::configure(file);
 
 		if (src == nullptr)
 			return false;

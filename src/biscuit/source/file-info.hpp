@@ -54,6 +54,7 @@ namespace Biscuit {
 				FileInfo(const String& path, const std::filesystem::file_time_type& modified_time, FileType type, uint64_t file_size, nlohmann::json&& metadata);
 				FileInfo(const std::filesystem::path& info, const nlohmann::json& metadata);
 				FileInfo(const FileInfo& info);
+				FileInfo(const FileInfo& info, const nlohmann::json& metadata);
 
 				static FileType from(const std::filesystem::path& file_info);
 				inline uint64_t file_size() const {

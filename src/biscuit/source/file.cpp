@@ -181,19 +181,12 @@ FileInfo File::next(uint16_t, uint16_t) {
 
 		this->m_lock.unlock();
 
-		return FileInfo(file, this->get_metadata(file));
+		return file;
 	}
 
 	this->m_lock.unlock();
 	return FileInfo();
 }
 
-QIODevice * File::open(const FileInfo& file, uint16_t) {
-	QFile * new_file = new QFile(file.path());
-	if (new_file->open(QIODevice::ReadOnly))
-		return new_file;
-	else {
-		delete new_file;
-		return nullptr;
-	}
+StreamReader * File::open(const FileInfo& file, uint16_t) {
 }

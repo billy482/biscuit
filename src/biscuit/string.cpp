@@ -27,7 +27,7 @@
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.    *
 *                                                                           *
 *  -----------------------------------------------------------------------  *
-*  Copyright (C) 2024, Guillaume Clercin <guillaume.clercin@billy482.net>   *
+*  Copyright (C) 2025, Guillaume Clercin <guillaume.clercin@billy482.net>   *
 \***************************************************************************/
 
 // sscanf, vsnprintf
@@ -541,6 +541,17 @@ String String::sprintf(const char * format, ...) {
 	va_end(params);
 
 	return result;
+}
+
+bool String::starts_with(char begin) const {
+	if (this->mString_is_null and begin == '\0')
+		return true;
+	if (this->mString_is_null)
+		return false;
+	if (begin == '\0')
+		return true;
+
+	return this->mString_data->get(0) == static_cast<unsigned char>(begin);
 }
 
 bool String::starts_with(const String& begin) const {
