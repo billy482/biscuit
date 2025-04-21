@@ -1,0 +1,8 @@
+[project]
+	authors = [
+		{ email = "guillaume.clercin@billy482.net", name = "Guillaume Clercin" }
+	]
+	description = "Backup tool which backs up via ssh and encrypts data"
+	keywords = ["backup", "ssh"]
+	name = "Biscuit"
+	version = "0.3"
