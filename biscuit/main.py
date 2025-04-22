@@ -15,6 +15,20 @@ def main(argv: List[str]) -> int:
 
 
 def __parse_args(argv: List[str]) -> argparse.Namespace:
+	"""
+	Parse command-line arguments.
+
+	This function sets up an argument parser for the application, including
+	a description, a configuration file option, and subcommands. It dynamically
+	adds subcommand parsers from the `parsers` module and parses the provided
+	arguments.
+
+	Args:
+		argv (List[str]): A list of command-line arguments to parse.
+
+	Returns:
+		argparse.Namespace: An object containing the parsed arguments.
+	"""
 	from .commands import parsers
 
 	parser = argparse.ArgumentParser(description='Tool to backup files via ssh into encrypted database')

@@ -1,3 +1,4 @@
+from biscuit.database.driver import check_configuration
 from typing import Dict
 from .value import Value
 
@@ -27,15 +28,40 @@ def parse_config(filename: str = 'biscuit.toml') -> Dict:
 
 	new_config = {}
 	# Check common options
-	if 'common' in config:
-		if 'block_size' in config['common']:
-			new_config['common'] = {
-				'block_size': Value(config['common']['block_size'], 4096)
-			}
-	else:
-		new_config['common'] = {
-			'block_size': Value(None, 4096)
+	if 'backup' in config:
+		new_config['backup'] = {
+			'block_size': Value(
+				config['backup']['block_size'] if 'block_size' in config['backup'] else None,
+				4096
+			),
+			'checksum': Value(
+				config['backup']['checksum'] if 'checksum' in config['backup'] else None,
+				'sha256'
+			),
+			'strategy': Value(
+				config['backup']['strategy'] if 'strategy' in config['backup'] else None,
+				'timestamp'
+			)
 		}
+	else:
+		new_config['backup'] = {
+			'block_size': Value(None, 4096),
+			'checksum': Value(None, 'sha256'),
+			'strategy': Value(None, 'timestamp')
+		}
+
+	if 'database' in config:
+		new_config['database'] = {
+			'driver': Value(
+				config['database']['driver'] if 'driver' in config['database'] else None,
+				'sqlite'
+			)
+		}
+	else:
+		new_config['database'] = {
+			'driver': Value(None, 'sqlite')
+		}
+	check_configuration(new_config['database']['driver'].get(), config['database'], new_config['database'])
 
 	return new_config
 

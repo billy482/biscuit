@@ -1,7 +1,7 @@
 import argparse
 
 
-def config_parse(sub_parser: argparse._SubParsersAction):
+def config_parse(sub_parser: argparse._SubParsersAction) -> None:
 	from .sub_config import parsers
 
 	parser = sub_parser.add_parser('config', help="Show configuration")

@@ -1,2 +1,7 @@
-[common]
+[backup]
 	block_size = 4096
+	checksum = "sha256"
+	strategy = "timestamp"
+[database]
+	driver = "sqlite"
+	path = "backup/biscuit.db"
