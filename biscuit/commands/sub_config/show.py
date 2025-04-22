@@ -22,6 +22,13 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 
 	show_database_configuration(config_table, add_value, config['database'])
 
+	add_value(config_table, "key.path", config['key']['path'])
+
+	add_value(config_table, "log.levels.core", config['log']['levels']['core'])
+	add_value(config_table, "log.levels.database", config['log']['levels']['database'])
+	add_value(config_table, "log.levels.ssh", config['log']['levels']['ssh'])
+	add_value(config_table, "log.path", config['log']['path'])
+
 
 	terminal = console.Console()
 	terminal.print(config_table)

@@ -1,7 +1,19 @@
 [backup]
-	block_size = 4096
-	checksum = "sha256"
-	strategy = "timestamp"
+block_size = 4096
+checksum = "sha256"
+strategy = "timestamp"
+
 [database]
-	driver = "sqlite"
-	path = "backup/biscuit.db"
+driver = "sqlite"
+path = "backup/biscuit.db"
+
+[key]
+path = "backup/key"
+
+[log]
+path = "biscuit.log"
+
+[log.levels]
+core = "info"
+database = "info"
+ssh = "info"

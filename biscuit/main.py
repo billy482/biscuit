@@ -1,5 +1,52 @@
 import argparse
-from typing import List
+import logging
+from typing import Dict, List
+
+
+def _configure_logging(config: Dict) -> None:
+	"""
+	Configures logging for the application based on the provided configuration.
+
+	This function sets up logging for different components of the application
+	('core', 'database', 'ssh') with specified log levels and handlers. It uses
+	both a stream handler for console output and a file handler for logging to
+	a file.
+
+	Args:
+		config (Dict): A dictionary containing logging configuration. It should
+			include:
+			- 'path': A dictionary with a `get()` method that returns the file
+			  path for the log file.
+			- 'levels': A dictionary where keys are component names ('core',
+			  'database', 'ssh') and values are objects with a `get()` method
+			  that returns the log level as a string ('critical', 'debug',
+			  'error', 'info', 'warning').
+
+	Raises:
+		KeyError: If required keys ('path', 'levels') or their subkeys are
+				  missing in the configuration dictionary.
+	"""
+	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+	ch = logging.StreamHandler()
+	ch.setFormatter(formatter)
+
+	fh = logging.FileHandler(config['path'].get())
+	fh.setFormatter(formatter)
+
+	levels = {
+		'critical': logging.CRITICAL,
+		'debug': logging.DEBUG,
+		'error': logging.ERROR,
+		'info': logging.INFO,
+		'warning': logging.WARNING
+	}
+
+	for type in ['core', 'database', 'ssh']:
+		logger = logging.getLogger('biscuit.' + type)
+		logger.setLevel(levels[config['levels'][type].get()])
+		logger.addHandler(ch)
+		logger.addHandler(fh)
 
 
 def main(argv: List[str]) -> int:
@@ -7,6 +54,7 @@ def main(argv: List[str]) -> int:
 
 	from .config import parse_config
 	config = parse_config(args.config)
+	_configure_logging(config['log'])
 
 	if hasattr(args, 'func'):
 		return args.func(args, config)
