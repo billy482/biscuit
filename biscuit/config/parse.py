@@ -61,7 +61,7 @@ def parse_config(filename: str = 'biscuit.toml') -> Dict:
 		new_config['database'] = {
 			'driver': Value(None, 'sqlite')
 		}
-	from biscuit.database.driver import check_configuration as check_database_configuration
+	from biscuit.database import check_configuration as check_database_configuration
 	check_database_configuration(new_config['database']['driver'].get(), config['database'], new_config['database'])
 
 	if 'key' in config:

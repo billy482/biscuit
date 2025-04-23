@@ -5,7 +5,7 @@ strategy = "timestamp"
 
 [database]
 driver = "sqlite"
-path = "backup/biscuit.db"
+path = "biscuit.db"
 
 [key]
 path = "backup/key"
