@@ -1,0 +1,22 @@
+---
+backup:
+  block_size: 4096
+  checksum: sha1
+  options:
+    exclude_if_present:
+      - __pycache__
+      - .no_backup
+  sources:
+    - path: biscuit
+  strategy: timestamp
+database:
+  driver: sqlite
+  path: biscuit.db
+key:
+  path: key
+log:
+  levels:
+    core: debug
+    database: debug
+    ssh: debug
+  path: backup.log

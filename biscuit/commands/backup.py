@@ -10,6 +10,11 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 	driver = Driver.get_driver(config['database'])
 	connection = driver.connect()
+	if connection is None:
+		logger.error("Failed to connect to the database.")
+		return 1
+	else:
+		logger.info("Connected to the database.")
 
 	return 0
 

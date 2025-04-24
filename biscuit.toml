@@ -3,12 +3,13 @@ block_size = 4096
 checksum = "sha256"
 strategy = "timestamp"
 
+
 [database]
 driver = "sqlite"
 path = "biscuit.db"
 
 [key]
-path = "backup/key"
+path = "key"
 
 [log]
 path = "biscuit.log"

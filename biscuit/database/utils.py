@@ -18,5 +18,5 @@ def show_configuration(table: rich.table, add_value, config: Dict) -> None:
 	add_value(table, "database.driver", config['driver'])
 
 	if config['driver'].get() == 'sqlite':
-		from .sqlite.driver import show_configuration as show_config
+		from .sqlite import show_configuration as show_config
 		show_config(table, add_value, config)

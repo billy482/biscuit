@@ -4,7 +4,7 @@ from typing import Dict
 
 def _show(args: argparse.Namespace, config: Dict) -> int:
 	"""Show configuration"""
-	from biscuit.database.driver import show_configuration as show_database_configuration
+	from biscuit.database import show_configuration as show_database_configuration
 	import rich.console as console
 	import rich.table as table
 
@@ -18,6 +18,12 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 
 	add_value(config_table, "backup.block_size", config['backup']['block_size'])
 	add_value(config_table, "backup.checksum", config['backup']['checksum'])
+	for i in range(len(config['backup']['options']['exclude_if_present'])):
+		add_value(config_table, f"backup.options.exclude_if_present[{i}]", config['backup']['options']['exclude_if_present'][i])
+	for i in range(len(config['backup']['sources'])):
+		add_value(config_table, f"backup.sources[{i}].path", config['backup']['sources'][i]['path'])
+		for j in range(len(config['backup']['sources'][i]['options']['exclude_if_present'])):
+			add_value(config_table, f"backup.sources[{i}].options.exclude_if_present[{j}]", config['backup']['sources'][i]['options']['exclude_if_present'][j])
 	add_value(config_table, "backup.strategy", config['backup']['strategy'])
 
 	show_database_configuration(config_table, add_value, config['database'])
