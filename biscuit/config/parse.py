@@ -41,7 +41,8 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 				'sha256'
 			),
 			'options': {
-				'exclude_if_present': []
+				'exclude_if_present': [],
+				'exclude_other_filesystem': Value(None, False)
 			},
 			'sources': [],
 			'strategy': Value(
@@ -55,12 +56,19 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 				for exclude in config['backup']['options']['exclude_if_present']:
 					new_config['backup']['options']['exclude_if_present'].append(Value(exclude, None))
 
+			if 'exclude_other_filesystem' in config['backup']['options']:
+				new_config['backup']['options']['exclude_other_filesystem'] = Value(
+					config['backup']['options']['exclude_other_filesystem'],
+					False
+				)
+
 			if 'sources' in config['backup']:
 				for source in config['backup']['sources']:
 					new_source = {
 						'path': Value(source['path'], None),
 						'options': {
-							'exclude_if_present': []
+							'exclude_if_present': [],
+							'exclude_other_filesystem': Value(None, False)
 						}
 					}
 
@@ -69,13 +77,20 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 							for pattern in source['options']['exclude_if_present']:
 								new_source['options']['exclude_if_present'].append(Value(pattern, None))
 
+						if 'exclude_other_filesystem' in source['options']:
+							new_source['options']['exclude_other_filesystem'] = Value(
+								source['options']['exclude_other_filesystem'],
+								False
+							)
+
 					new_config['backup']['sources'].append(new_source)
 	else:
 		new_config['backup'] = {
 			'block_size': Value(None, 4096),
 			'checksum': Value(None, 'sha256'),
 			'options': {
-				'exclude_if_present': []
+				'exclude_if_present': [],
+				'exclude_other_filesystem': Value(None, False)
 			},
 			'sources': [],
 			'strategy': Value(None, 'timestamp')

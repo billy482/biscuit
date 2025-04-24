@@ -6,6 +6,7 @@ backup:
     exclude_if_present:
       - __pycache__
       - .no_backup
+    exclude_other_filesystem: true
   sources:
     - path: biscuit
   strategy: timestamp

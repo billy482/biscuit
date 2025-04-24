@@ -20,10 +20,12 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 	add_value(config_table, "backup.checksum", config['backup']['checksum'])
 	for i in range(len(config['backup']['options']['exclude_if_present'])):
 		add_value(config_table, f"backup.options.exclude_if_present[{i}]", config['backup']['options']['exclude_if_present'][i])
+	add_value(config_table, "backup.options.exclude_other_filesystem", config['backup']['options']['exclude_other_filesystem'])
 	for i in range(len(config['backup']['sources'])):
 		add_value(config_table, f"backup.sources[{i}].path", config['backup']['sources'][i]['path'])
 		for j in range(len(config['backup']['sources'][i]['options']['exclude_if_present'])):
 			add_value(config_table, f"backup.sources[{i}].options.exclude_if_present[{j}]", config['backup']['sources'][i]['options']['exclude_if_present'][j])
+		add_value(config_table, f"backup.sources[{i}].options.exclude_other_filesystem", config['backup']['sources'][i]['options']['exclude_other_filesystem'])
 	add_value(config_table, "backup.strategy", config['backup']['strategy'])
 
 	show_database_configuration(config_table, add_value, config['database'])
