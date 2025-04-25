@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import sqlite3
 from .driver import SQLiteDriver
 from ..connection import Connection

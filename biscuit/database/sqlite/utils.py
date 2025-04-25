@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from biscuit.config.value import Value
 from typing import Dict
 

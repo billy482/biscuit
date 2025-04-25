@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from .backup import backup_parse
 from .config import config_parse
 

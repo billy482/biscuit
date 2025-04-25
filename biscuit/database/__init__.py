@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from .connection import Connection
 from .driver import Driver
 from .utils import check_configuration, show_configuration

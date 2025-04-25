@@ -8,7 +8,8 @@ backup:
       - .no_backup
     exclude_other_filesystem: true
   sources:
-    - path: biscuit
+    - driver: file
+      path: biscuit
   strategy: timestamp
 database:
   driver: sqlite

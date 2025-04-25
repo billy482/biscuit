@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 class Value:
 	"""
 	A class to represent a value (and its default value) in the biscuit configuration.

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Dict
 from .value import Value
 
@@ -52,19 +54,24 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 		}
 
 		if 'options' in config['backup']:
-			if 'exclude_if_present' in config['backup']['options']:
-				for exclude in config['backup']['options']['exclude_if_present']:
-					new_config['backup']['options']['exclude_if_present'].append(Value(exclude, None))
+			def parse_options(new_config: Dict, config: Dict) -> None:
+				if 'exclude_if_present' in config:
+					for exclude in config['exclude_if_present']:
+						new_config['exclude_if_present'].append(Value(exclude, None))
 
-			if 'exclude_other_filesystem' in config['backup']['options']:
-				new_config['backup']['options']['exclude_other_filesystem'] = Value(
-					config['backup']['options']['exclude_other_filesystem'],
-					False
-				)
+				if 'exclude_other_filesystem' in config:
+					new_config['exclude_other_filesystem'] = Value(
+						config['exclude_other_filesystem'],
+						False
+					)
+
+			parse_options(new_config['backup']['options'], config['backup']['options'])
 
 			if 'sources' in config['backup']:
 				for source in config['backup']['sources']:
 					new_source = {
+						'driver': Value(
+							source['driver'] if 'driver' in source else None, 'file'),
 						'path': Value(source['path'], None),
 						'options': {
 							'exclude_if_present': [],
@@ -73,15 +80,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 					}
 
 					if 'options' in source:
-						if 'exclude_if_present' in source['options']:
-							for pattern in source['options']['exclude_if_present']:
-								new_source['options']['exclude_if_present'].append(Value(pattern, None))
-
-						if 'exclude_other_filesystem' in source['options']:
-							new_source['options']['exclude_other_filesystem'] = Value(
-								source['options']['exclude_other_filesystem'],
-								False
-							)
+						parse_options(new_source['options'], source['options'])
 
 					new_config['backup']['sources'].append(new_source)
 	else:

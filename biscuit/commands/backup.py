@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
+
 import argparse
 from biscuit.database import Driver
+from biscuit.path import parse_config as parse_path_config
 import logging
 from typing import Dict
 
@@ -7,6 +10,8 @@ from typing import Dict
 def _backup(args: argparse.Namespace, config: Dict) -> int:
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
+
+	sources = parse_path_config(config['backup'])
 
 	driver = Driver.get_driver(config['database'])
 	connection = driver.connect()

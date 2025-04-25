@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import logging
 import sqlite3
 from ..driver import Driver

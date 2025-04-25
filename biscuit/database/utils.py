@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import rich.table
 from typing import Dict
 
