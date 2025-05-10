@@ -12,6 +12,9 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	logger.info("Starting backup process...")
 
 	sources = parse_path_config(config['backup'])
+	for source in sources:
+		for file in source:
+			print(file)
 
 	driver = Driver.get_driver(config['database'])
 	connection = driver.connect()

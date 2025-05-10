@@ -10,3 +10,9 @@ class Source:
 		self.source = config['path'].get()
 		self.option = Option(config['options'], option)
 		self.files = load_config(config)
+
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		return next(self.files)
