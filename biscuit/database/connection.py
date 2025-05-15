@@ -7,7 +7,7 @@ class Connection:
 	Base class for database connections.
 	"""
 	def __init__(self, driver: Driver):
-		self.driver = driver
+		self._driver = driver
 
 	def close(self) -> bool:
 		"""

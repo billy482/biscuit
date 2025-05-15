@@ -13,8 +13,8 @@ class Value:
 			value: The current value.
 			default: The default value.
 		"""
-		self.value = value
-		self.default = default
+		self._value = value
+		self._default = default
 
 	def get(self):
 		"""
@@ -23,7 +23,7 @@ class Value:
 		Returns:
 			The current value.
 		"""
-		return self.value or self.default
+		return self._value or self._default
 
 	def get_current(self):
 		"""
@@ -32,7 +32,7 @@ class Value:
 		Returns:
 			The current value.
 		"""
-		return self.value
+		return self._value
 	
 	def get_default(self):
 		"""
@@ -41,4 +41,4 @@ class Value:
 		Returns:
 			The default value.
 		"""
-		return self.default
+		return self._default

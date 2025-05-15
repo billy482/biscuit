@@ -8,15 +8,15 @@ from ..driver import Driver
 class SQLiteDriver(Driver):
 	def __init__(self, config: dict):
 		super().__init__()
-		self.path = config['path'].get()
+		self._path = config['path'].get()
 
 	def connect(self) -> 'SQLiteConnection':
 		logger = logging.getLogger('biscuit.database')
 		logger.info(f"[SQlite] Using SQLite database (version: {sqlite3.sqlite_version})")
 
 		try:
-			logger.debug(f"Opening SQLite database at {self.path}")
-			connect = sqlite3.connect(self.path)
+			logger.debug(f"Opening SQLite database at {self._path}")
+			connect = sqlite3.connect(self._path)
 
 		except sqlite3.Error as e:
 			logger.error(f"[SQlite] Error while opening database because {e}")
@@ -28,7 +28,7 @@ class SQLiteDriver(Driver):
 			cursor.fetchone()
 
 		except sqlite3.Error as e:
-			logger.info(f"[SQlite] Creating SQLite database at {self.path}")
+			logger.info(f"[SQlite] Creating SQLite database at {self._path}")
 			if not self._create_db(cursor):
 				logger.error(f"[SQlite] Error while creating database")
 				return None

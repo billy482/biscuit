@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .iterator import FileIterator
+from .source import FileSource
 
-__all__ = [FileIterator]
+__all__ = [FileSource]
