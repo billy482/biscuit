@@ -40,6 +40,6 @@ class FileIterator:
 					if len(self._folders) > 0:
 						self._folders[-1].pop(0)
 					else:
-						return None
+						raise StopIteration
 
 				return path

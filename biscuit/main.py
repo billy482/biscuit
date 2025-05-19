@@ -2,10 +2,10 @@
 
 import argparse
 import logging
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
-def _configure_logging(config: Dict) -> None:
+def _configure_logging(config: Dict[str, Any]) -> None:
 	"""
 	Configures logging for the application based on the provided configuration.
 

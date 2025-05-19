@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Any, Dict
 from .value import Value
 
 
-def parse_config(filename: str = 'biscuit.yaml') -> Dict:
+def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
 	"""
 	Parse a configuration file in JSON, TOML, or YAML format.
 
@@ -30,7 +30,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 	else:
 		raise ValueError(f"File extension not supported for this file ({filename}). Supported extensions are .json, .toml, and .yaml")
 
-	new_config = {}
+	new_config: Dict[str, Any] = {}
 	# Check common options
 	if 'backup' in config:
 		new_config['backup'] = {
@@ -43,6 +43,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 				'sha256'
 			),
 			'options': {
+				'exclude': [],
 				'exclude_if_present': [],
 				'exclude_other_filesystem': Value(None, False)
 			},
@@ -54,7 +55,11 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 		}
 
 		if 'options' in config['backup']:
-			def parse_options(new_config: Dict, config: Dict) -> None:
+			def parse_options(new_config: Dict[str, Any], config: Dict[str, Any]) -> None:
+				if 'exclude' in config:
+					for exclude in config['exclude']:
+						new_config['exclude'].append(Value(exclude, None))
+
 				if 'exclude_if_present' in config:
 					for exclude in config['exclude_if_present']:
 						new_config['exclude_if_present'].append(Value(exclude, None))
@@ -69,11 +74,12 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 
 			if 'sources' in config['backup']:
 				for source in config['backup']['sources']:
-					new_source = {
+					new_source: Dict[str, Any] = {
 						'driver': Value(
 							source['driver'] if 'driver' in source else None, 'file'),
 						'path': Value(source['path'], None),
 						'options': {
+							'exclude': [],
 							'exclude_if_present': [],
 							'exclude_other_filesystem': Value(None, False)
 						}
@@ -82,12 +88,13 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 					if 'options' in source:
 						parse_options(new_source['options'], source['options'])
 
-					new_config['backup']['sources'].append(new_source)
+					new_config['backup']['sources'].append(new_source)  # type: ignore
 	else:
 		new_config['backup'] = {
 			'block_size': Value(None, 4096),
 			'checksum': Value(None, 'sha256'),
 			'options': {
+				'exclude': [],
 				'exclude_if_present': [],
 				'exclude_other_filesystem': Value(None, False)
 			},
@@ -155,7 +162,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict:
 	return new_config
 
 
-def _parse_config_json(filename : str) -> Dict:
+def _parse_config_json(filename: str) -> Dict[str, Any]:
 	"""
 	Parse a JSON configuration file and return its contents as a dictionary.
 
@@ -177,7 +184,7 @@ def _parse_config_json(filename : str) -> Dict:
 	return config
 
 
-def _parse_config_toml(filename : str) -> Dict:
+def _parse_config_toml(filename: str) -> Dict[str, Any]:
 	"""
 	Parse a TOML configuration file and return its contents as a dictionary.
 
@@ -199,7 +206,7 @@ def _parse_config_toml(filename : str) -> Dict:
 	return config
 
 
-def _parse_config_yaml(filename : str) -> Dict:
+def _parse_config_yaml(filename: str) -> Dict[str, Any]:
 	"""
 	Parse a YAML configuration file and return its contents as a dictionary.
 
