@@ -3,8 +3,10 @@
 from typing import Dict, List, Optional
 from .file_info import FileInfo
 
+ParentFilter = Optional['Filter']
+
 class Filter:
-	def __init__(self, config: Dict, parent_filter: Optional['Filter'] = None):
+	def __init__(self, config: Dict, parent_filter: ParentFilter = None):
 		import re
 
 		def compile(pattern: str) -> re.Pattern:

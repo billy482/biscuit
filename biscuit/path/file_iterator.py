@@ -18,8 +18,8 @@ class FileIterator:
 		def __init__(self, source: 'FileIterator'):
 			self._source = source
 
-			parent_directory = self._source._from.get_parent_directory(self._source._path)
-			self._folders = [[ self._source._from.get_file_info(parent_directory, self._source._path) ]]
+			parent_directory = self._source._from.get_parent_directory(self._source._path) or self._source._path
+			self._folders = [[ self._source._from.get_file_info(self._source._path, parent_directory) ]]
 
 		def _move_to_next(self):
 			self._folders[-1].pop(0)
