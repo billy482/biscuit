@@ -2,17 +2,20 @@
 
 import os
 from typing import Dict, List
+from ..file_info import FileInfo
 from ..source import Source
 
 class FileSource(Source):
 	def __init__(self, config: Dict):
 		self._path = config['path'].get()
 
-	def get_files(self, path: str) -> List[str]:
-		return os.listdir(path)
+	def get_file_info(self, parent_directory: str, path: str) -> FileInfo:
+		stat = os.stat(path)
+		return FileInfo.from_stat_result(parent_directory, path, stat)
 
-	def is_dir(self, path: str) -> bool:
-		return os.path.isdir(path)
+	def get_files(self, directory: FileInfo) -> List[FileInfo]:
+		files = os.scandir(directory.path())
+		return sorted(map(lambda x: FileInfo.from_stat_result(x.name, x.path, x.stat(), directory), files))
 
-	def join(self, path: List[str]) -> str:
-		return os.path.join(*path)
+	def get_parent_directory(self, file: str) -> str:
+		return os.path.dirname(file)

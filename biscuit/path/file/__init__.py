@@ -2,4 +2,4 @@
 
 from .source import FileSource
 
-__all__ = [FileSource]
+__all__ = ["FileSource"]

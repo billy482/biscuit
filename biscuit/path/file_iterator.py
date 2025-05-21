@@ -17,29 +17,37 @@ class FileIterator:
 	class _Iterator:
 		def __init__(self, source: 'FileIterator'):
 			self._source = source
-			self._folders = None
+
+			parent_directory = self._source._from.get_parent_directory(self._source._path)
+			self._folders = [[ self._source._from.get_file_info(parent_directory, self._source._path) ]]
+
+		def _move_to_next(self):
+			self._folders[-1].pop(0)
+			while len(self._folders[-1]) == 0:
+				self._folders.pop()
+				if len(self._folders) > 0:
+					self._folders[-1].pop(0)
+				else:
+					raise StopIteration
 
 		def __next__(self):
-			if self._folders is None:
-				self._folders = [[ self._source._path ]]
-
 			while len(self._folders) > 0:
-				parts = [ x[0] for x in self._folders ]
-				path = self._source._from.join(parts)
+				file_info = self._folders[-1][0]
 
-				if self._source._from.is_dir(path):
-					files = self._source._from.get_files(path)
-					files.sort()
+				if self._source._filter.is_excluded(file_info):
+					self._move_to_next()
+					continue
+
+				if file_info.is_dir():
+					files = self._source._from.get_files(file_info)
+
+					if self._source._filter.exclude_if_present(files):
+						self._move_to_next()
+						continue
 
 					self._folders.append(files)
-					return path
+					return file_info
 
-				self._folders[-1].pop(0)
-				while len(self._folders[-1]) == 0:
-					self._folders.pop()
-					if len(self._folders) > 0:
-						self._folders[-1].pop(0)
-					else:
-						raise StopIteration
+				self._move_to_next()
 
-				return path
+				return file_info
