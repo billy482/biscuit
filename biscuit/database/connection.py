@@ -19,4 +19,4 @@ class Connection:
 		"""
 		Get the driver associated with this connection.
 		"""
-		return self.driver
+		return self._driver

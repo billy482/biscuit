@@ -11,6 +11,14 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
 
+	driver = Driver.get_driver(config['database'])
+	connection = driver.connect()
+	if connection is None:
+		logger.error("Failed to connect to the database.")
+		return 1
+	else:
+		logger.info("Connected to the database.")
+
 	sources = parse_path_config(config['backup'])
 	for source in sources:
 		for file in source:
@@ -22,14 +30,6 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					print('=', end='', flush=True)
 				reader.close()
 				print('.')
-
-	driver = Driver.get_driver(config['database'])
-	connection = driver.connect()
-	if connection is None:
-		logger.error("Failed to connect to the database.")
-		return 1
-	else:
-		logger.info("Connected to the database.")
 
 	return 0
 

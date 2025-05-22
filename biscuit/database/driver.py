@@ -16,7 +16,7 @@ class Driver:
 		raise NotImplementedError("Subclasses must implement this method.")
 
 	@staticmethod
-	def get_driver(config: Dict) -> 'Driver':
+	def get_driver(config: Dict) -> 'Driver' | None:
 		if config['driver'].get() == 'sqlite':
 			from biscuit.database.sqlite import SQLiteDriver
 			return SQLiteDriver(config)
