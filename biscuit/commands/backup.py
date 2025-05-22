@@ -2,7 +2,7 @@
 
 import argparse
 from biscuit.database import Driver
-from biscuit.path import parse_config as parse_path_config
+from biscuit.io import parse_config as parse_path_config
 import logging
 from typing import Dict
 
@@ -15,6 +15,13 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	for source in sources:
 		for file in source:
 			print(file)
+
+			if file.is_file():
+				reader = file.open_for_read()
+				while (data := reader.read(4096)):
+					print('=', end='', flush=True)
+				reader.close()
+				print('.')
 
 	driver = Driver.get_driver(config['database'])
 	connection = driver.connect()

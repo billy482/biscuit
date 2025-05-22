@@ -3,6 +3,7 @@
 import os
 from typing import Dict, List
 from ..file_info import FileInfo
+from ..reader import Reader
 from ..source import Source
 
 class FileSource(Source):
@@ -19,3 +20,7 @@ class FileSource(Source):
 
 	def get_parent_directory(self, file: str) -> str:
 		return os.path.dirname(file)
+
+	def open_for_read(self, file: FileInfo) -> Reader:
+		from .reader import FileReader
+		return FileReader(file)

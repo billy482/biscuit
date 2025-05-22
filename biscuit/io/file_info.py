@@ -2,6 +2,7 @@
 
 from os import stat_result
 from typing import Any, Dict, Optional
+from .reader import Reader
 from .source import Source
 
 ParentFileInfo = Optional['FileInfo']
@@ -20,6 +21,12 @@ class FileInfo:
 		self._source = source
 	
 	def dev(self) -> int:
+		"""
+		Returns the device number associated with the file.
+
+		Returns:
+			int: The device number.
+		"""
 		return self._dev
 
 	def filename(self) -> str:
@@ -44,6 +51,9 @@ class FileInfo:
 	def is_dir(self) -> bool:
 		return (self._mode & 0o40000) != 0
 
+	def is_file(self) -> bool:
+		return (self._mode & 0o100000) != 0
+
 	def __lt__(self, other: 'FileInfo') -> bool:
 		return self._path < other._path
 	
@@ -52,6 +62,9 @@ class FileInfo:
 
 	def mtime(self) -> float:
 		return self._mtime
+
+	def open_for_read(self) -> Reader:
+		return self._source.open_for_read(self)
 
 	def parent(self) -> ParentFileInfo:
 		return self._parent
