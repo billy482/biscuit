@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Optional
+
+DriverOptional = Optional["Driver"]
 
 class Driver:
 	"""
@@ -16,7 +18,7 @@ class Driver:
 		raise NotImplementedError("Subclasses must implement this method.")
 
 	@staticmethod
-	def get_driver(config: Dict) -> 'Driver' | None:
+	def get_driver(config: Dict) -> DriverOptional:
 		if config['driver'].get() == 'sqlite':
 			from biscuit.database.sqlite import SQLiteDriver
 			return SQLiteDriver(config)

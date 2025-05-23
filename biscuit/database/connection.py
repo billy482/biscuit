@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from typing import List
 from .driver import Driver
 
 class Connection:
@@ -20,3 +21,9 @@ class Connection:
 		Get the driver associated with this connection.
 		"""
 		return self._driver
+
+	def list_keys(self) -> List:
+		"""
+		List all keys in the database.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")

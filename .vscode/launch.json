@@ -1,0 +1,32 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"args": ["backup"],
+			"console": "integratedTerminal",
+			"name": "biscuit: backup",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
+			"args": ["config", "show"],
+			"console": "integratedTerminal",
+			"name": "biscuit: config show",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
+			"args": ["key", "list"],
+			"console": "integratedTerminal",
+			"name": "biscuit: key list",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		}
+	]
+}
