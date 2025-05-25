@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from biscuit.database import Driver
-from biscuit.key import Key
 from getpass import getpass
 import logging
 from typing import Dict
@@ -11,6 +9,10 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 	"""
 	Generate a new key.
 	"""
+
+	from biscuit.database import Driver
+	from biscuit.key import Key
+
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Generate new key...")
 
@@ -32,13 +34,15 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 		logger.error("Failed to connect to the database.")
 		return 1
 
-	key = Key.generate_key_pair()
+	key = Key.generate_key_pair(args.path, args.key_length, passphrase)
 
-	print(f"Generated key: {key}")
+	logger.info(f"Key generated successfully. Public key fingerprint: {key.fingerprint()}")
 
 	return 0
 
 def generate_parse(sub_parser: argparse._SubParsersAction) -> None:
 	parser = sub_parser.add_parser('generate', aliases=["gen"], help="Generate a new rsa key")
 	parser.set_defaults(func=_generate)
+	parser.add_argument('-k', '--key-length', type=int, default=2048, help="Length of the key to generate (default: 2048 bits)", metavar='INT')
+	parser.add_argument('-p', '--path', default='~/.biscuit/key', help="Path (private key) to the generated key. If not specified, defaults to '~/.biscuit/key'.", metavar='FILE')
 	parser.add_argument('-P', '--no-passphrase', action='store_true', help="Do not use a passphrase")

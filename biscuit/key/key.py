@@ -35,7 +35,7 @@ class Key:
 			)
 			hasher = hashes.Hash(hashes.SHA256())
 			hasher.update(public_key_bytes_der)
-			return base64.b64encode(hasher.finalize()).decode('utf-8')
+			return base64.b16encode(hasher.finalize()).decode('utf-8')
 		else:
 			return None
 
@@ -55,8 +55,12 @@ class Key:
 		Raises:
 			ValueError: If key generation or file writing fails.
 		"""
+		from os.path import expanduser
+
+		private_key_path = expanduser(private_key_path)
+
 		logger = logging.getLogger('biscuit.keyring')
-		logger.info(f"Generating new rsa key pair (length: {key_length})...")
+		logger.info(f"Generating new rsa key pair (path: {private_key_path}, length: {key_length})...")
 
 		private_key = rsa.generate_private_key(
 			public_exponent = 65537,
@@ -66,18 +70,13 @@ class Key:
 		public_key = private_key.public_key()
 
 		with open(private_key_path, 'wb') as f:
-			if passphrase is not None:
-				private_key_bytes = private_key.private_bytes(
-					encoding = serialization.Encoding.PEM,
-					format = serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
-				)
-			else:
-				private_key_bytes = private_key.private_bytes(
-					encoding = serialization.Encoding.PEM,
-					format = serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm = serialization.NoEncryption()
-				)
+			encyption_algorithm = serialization.NoEncryption() if passphrase is None else serialization.BestAvailableEncryption(passphrase.encode())
+
+			private_key_bytes = private_key.private_bytes(
+				encoding = serialization.Encoding.PEM,
+				format = serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm = encyption_algorithm
+			)
 			f.write(private_key_bytes)
 		logger.info(f"Private key saved to {private_key_path}")	
 
