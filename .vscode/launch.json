@@ -13,9 +13,25 @@
 			"type": "debugpy"
 		},
 		{
+			"args": ["config", "generate", "-f", "json", "-o", "test.json"],
+			"console": "integratedTerminal",
+			"name": "biscuit: config gen",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
 			"args": ["config", "show"],
 			"console": "integratedTerminal",
 			"name": "biscuit: config show",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
+			"args": ["key", "gen"],
+			"console": "integratedTerminal",
+			"name": "biscuit: key gen",
 			"program": "${workspaceFolder}/biscuit.py",
 			"request": "launch",
 			"type": "debugpy"

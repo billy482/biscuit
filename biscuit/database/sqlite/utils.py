@@ -3,7 +3,6 @@
 from biscuit.config.value import Value
 from typing import Dict
 
-
 def check_configuration(config: dict, new_config: Dict) -> None:
 	"""
 	Check the configuration of the database driver.
@@ -12,7 +11,6 @@ def check_configuration(config: dict, new_config: Dict) -> None:
 		config['path'],
 		'./biscuit.db'
 	)
-
 
 def show_configuration(table, add_value, config: dict) -> None:
 	"""

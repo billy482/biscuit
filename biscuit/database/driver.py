@@ -2,6 +2,7 @@
 
 from typing import Dict, Optional
 
+ConnectionOptional = Optional["Connection"]
 DriverOptional = Optional["Driver"]
 
 class Driver:
@@ -11,7 +12,7 @@ class Driver:
 	def __init__(self):
 		pass
 
-	def connect(self) -> "Connection":
+	def connect(self) -> ConnectionOptional:
 		"""
 		Connect to the database.
 		"""

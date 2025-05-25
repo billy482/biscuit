@@ -2,15 +2,18 @@
 
 import logging
 import sqlite3
+from typing import Optional
+from ..connection import Connection
 from ..driver import Driver
 
+ConnectionOptional = Optional[Connection]
 
 class SQLiteDriver(Driver):
 	def __init__(self, config: dict):
 		super().__init__()
 		self._path = config['path'].get()
 
-	def connect(self) -> 'SQLiteConnection':
+	def connect(self) -> ConnectionOptional:
 		logger = logging.getLogger('biscuit.database')
 		logger.info(f"[SQlite] Using SQLite database (version: {sqlite3.sqlite_version})")
 

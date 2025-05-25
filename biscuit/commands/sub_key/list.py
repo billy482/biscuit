@@ -4,12 +4,15 @@ import argparse
 from biscuit.database import Driver
 from typing import Dict
 
-
 def _list(args: argparse.Namespace, config: Dict) -> int:
 	"""
 	List all keys in the database.
 	"""
 	driver = Driver.get_driver(config['database'])
+	if driver is None:
+		print("Error: No database driver found")
+		return 1
+
 	connection = driver.connect()
 	if connection is None:
 		return 1
@@ -21,7 +24,6 @@ def _list(args: argparse.Namespace, config: Dict) -> int:
 		print(f"ID: {key[0]}, Fingerprint: {key[1]}, Length: {key[2]}")
 
 	return 0
-
 
 def list_parse(sub_parser: argparse._SubParsersAction) -> None:
 	"""

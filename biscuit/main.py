@@ -4,7 +4,6 @@ import argparse
 import logging
 from typing import Any, Dict, List
 
-
 def _configure_logging(config: Dict[str, Any]) -> None:
 	"""
 	Configures logging for the application based on the provided configuration.
@@ -44,15 +43,26 @@ def _configure_logging(config: Dict[str, Any]) -> None:
 		'warning': logging.WARNING
 	}
 
-	for type in ['core', 'database', 'ssh']:
+	for type in ['core', 'database', 'keyring', 'ssh']:
 		logger = logging.getLogger('biscuit.' + type)
 		logger.setLevel(levels[config['levels'][type].get()])
 		logger.addHandler(ch)
 		logger.addHandler(fh)
 
-
 def main(argv: List[str]) -> int:
-	args = __parse_args(argv)
+	"""
+	Main entry point for the application.
+
+	Parses command-line arguments, loads configuration, sets up logging, and dispatches
+	to the appropriate subcommand function if specified.
+
+	Args:
+		argv (List[str]): List of command-line arguments.
+
+	Returns:
+		int: Exit code. Returns the result of the subcommand function if present, otherwise 1.
+	"""
+	args = _parse_args(argv)
 
 	from .config import parse_config
 	config = parse_config(args.config)
@@ -63,8 +73,7 @@ def main(argv: List[str]) -> int:
 	else:
 		return 1
 
-
-def __parse_args(argv: List[str]) -> argparse.Namespace:
+def _parse_args(argv: List[str]) -> argparse.Namespace:
 	"""
 	Parse command-line arguments.
 
@@ -84,7 +93,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description='Tool to backup files via ssh into encrypted database')
 	parser.add_argument('-c', '--config', default='biscuit.yaml', help='Specify alternative configuration file (default: biscuit.yaml)', metavar='FILENAME')
 
-	sub_parser = parser.add_subparsers(dest="Command", help="Subcommand help")
+	sub_parser = parser.add_subparsers()
 
 	for p in parsers:
 		p(sub_parser)

@@ -3,7 +3,6 @@
 from typing import Any, Dict
 from .value import Value
 
-
 def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
 	"""
 	Parse a configuration file in JSON, TOML, or YAML format.
@@ -138,7 +137,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
 		}
 
 		if 'levels' in config['log']:
-			for level in ['core', 'database', 'ssh']:
+			for level in ['core', 'database', 'keyring', 'ssh']:
 				new_config['log']['levels'][level] = Value(
 					config['log']['levels'][level] if level in config['log']['levels'] else None,
 					'info'
@@ -147,6 +146,7 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
 			new_config['log']['levels'] = {
 				'core': Value(None, 'info'),
 				'database': Value(None, 'info'),
+				'keyring': Value(None, 'info'),
 				'ssh': Value(None, 'info')
 			}
 	else:
@@ -154,13 +154,13 @@ def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
 			'levels': {
 				'core': Value(None, 'info'),
 				'database': Value(None, 'info'),
+				'keyring': Value(None, 'info'),
 				'ssh': Value(None, 'info')
 			},
 			'path': Value(None, '~/.biscuit/log')
 		}
 
 	return new_config
-
 
 def _parse_config_json(filename: str) -> Dict[str, Any]:
 	"""
@@ -183,7 +183,6 @@ def _parse_config_json(filename: str) -> Dict[str, Any]:
 
 	return config
 
-
 def _parse_config_toml(filename: str) -> Dict[str, Any]:
 	"""
 	Parse a TOML configuration file and return its contents as a dictionary.
@@ -204,7 +203,6 @@ def _parse_config_toml(filename: str) -> Dict[str, Any]:
 		config = toml.load(fd)
 
 	return config
-
 
 def _parse_config_yaml(filename: str) -> Dict[str, Any]:
 	"""

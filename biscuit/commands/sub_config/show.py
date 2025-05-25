@@ -3,7 +3,6 @@
 import argparse
 from typing import Dict
 
-
 def _show(args: argparse.Namespace, config: Dict) -> int:
 	"""Show configuration"""
 	from biscuit.database import show_configuration as show_database_configuration
@@ -44,7 +43,6 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 	terminal.print(config_table)
 
 	return 0
-
 
 def show_parse(sub_parser: argparse._SubParsersAction) -> None:
 	parser = sub_parser.add_parser('show', help="Show configuration")

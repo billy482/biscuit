@@ -2,7 +2,6 @@
 
 import argparse
 
-
 def key_parse(sub_parser: argparse._SubParsersAction) -> None:
 	from .sub_key import parsers
 
