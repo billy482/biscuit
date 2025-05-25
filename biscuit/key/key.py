@@ -10,6 +10,7 @@ strOpt = Optional[str]
 class Key:
 	def __init__(self, private_key_path: str):
 		self._public_key = {
+			'fingerprint': {},
 			'path': private_key_path + '.pub',
 			'key': None
 		}
@@ -18,24 +19,50 @@ class Key:
 			'key': None
 		}
 
-	def fingerprint(self) -> strOpt:
+	def fingerprint(self, algo: str = 'sha256') -> strOpt:
 		"""
-		Generates a fingerprint for the public key using SHA-256 hashing and Base64 encoding.
+		Generates and returns the fingerprint of the public key using the specified hashing algorithm.
+
+		If the fingerprint for the given algorithm is already computed and cached, it is returned directly.
+		Otherwise, the fingerprint is computed by serializing the public key to DER format, hashing it with
+		the specified algorithm, and encoding the result in base16 (hexadecimal). The computed fingerprint
+		is then cached and returned.
+
+		Args:
+			algo (str, optional): The hashing algorithm to use for the fingerprint. Supported values are
+				'md5', 'sha1', 'sha256', and 'sha512'. Defaults to 'sha256'.
 
 		Returns:
-			Optional[str]: The Base64-encoded SHA-256 fingerprint of the public key if available, otherwise None.
+			Optional[str]: The fingerprint of the public key as a base16-encoded string, or None if the
+			public key is not loaded.
+
+		Raises:
+			KeyError: If an unsupported algorithm is specified.
 		"""
 		import base64
 		from cryptography.hazmat.primitives import hashes
+
+		if algo in self._public_key['fingerprint']:
+			return self._public_key['fingerprint'][algo]
 
 		if self._public_key['key'] is not None:
 			public_key_bytes_der = self._public_key['key'].public_bytes(
 				encoding = serialization.Encoding.DER,
 				format = serialization.PublicFormat.SubjectPublicKeyInfo
 			)
-			hasher = hashes.Hash(hashes.SHA256())
+
+			algos = {
+				'md5': hashes.MD5,
+				'sha1': hashes.SHA1,
+				'sha256': hashes.SHA256,
+				'sha512': hashes.SHA512,
+			}
+
+			hasher = hashes.Hash(algos[algo]())
 			hasher.update(public_key_bytes_der)
-			return base64.b16encode(hasher.finalize()).decode('utf-8')
+			self._public_key['fingerprint'][algo] = base64.b16encode(hasher.finalize()).decode('utf-8')
+
+			return self._public_key['fingerprint'][algo]
 		else:
 			return None
 
@@ -70,12 +97,15 @@ class Key:
 		public_key = private_key.public_key()
 
 		with open(private_key_path, 'wb') as f:
-			encyption_algorithm = serialization.NoEncryption() if passphrase is None else serialization.BestAvailableEncryption(passphrase.encode())
+			if passphrase is None:
+				encryption_algorithm = serialization.NoEncryption()
+			else:
+				encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
 
 			private_key_bytes = private_key.private_bytes(
 				encoding = serialization.Encoding.PEM,
 				format = serialization.PrivateFormat.TraditionalOpenSSL,
-				encryption_algorithm = encyption_algorithm
+				encryption_algorithm = encryption_algorithm
 			)
 			f.write(private_key_bytes)
 		logger.info(f"Private key saved to {private_key_path}")	
@@ -93,6 +123,20 @@ class Key:
 		new_key._private_key['key'] = private_key
 
 		return new_key
+
+	def key_length(self) -> int:
+		"""
+		Get the length of the private key in bits.
+
+		Returns:
+			int: The length of the private key in bits, or 0 if the key is not loaded.
+		"""
+		if self._private_key['key'] is not None:
+			return self._private_key['key'].key_size
+		elif self._public_key['key'] is not None:
+			return self._public_key['key'].key_size
+		else:
+			return 0
 
 	def load_public_key(self) -> bool:
 		"""

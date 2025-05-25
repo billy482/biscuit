@@ -24,6 +24,10 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 			logger.error("Passphrases do not match.")
 			return 1
 
+	key = Key.generate_key_pair(args.path, args.key_length, passphrase)
+
+	logger.info(f"Key generated successfully. Public key fingerprint: {key.fingerprint()}")
+
 	driver = Driver.get_driver(config['database'])
 	if driver is None:
 		logger.error("No database driver found")
@@ -34,9 +38,17 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 		logger.error("Failed to connect to the database.")
 		return 1
 
-	key = Key.generate_key_pair(args.path, args.key_length, passphrase)
+	if connection.has_key(key):
+		logger.error("Key already exists in the database.")
+		return 1
 
-	logger.info(f"Key generated successfully. Public key fingerprint: {key.fingerprint()}")
+	if not connection.import_key(key):
+		logger.error("Failed to import key into the database.")
+		return 1
+	else:
+		logger.info("Key imported into the database successfully.")
+
+	connection.close()
 
 	return 0
 
