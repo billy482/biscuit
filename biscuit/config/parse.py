@@ -1,25 +1,46 @@
 # -*- coding: utf-8 -*-
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .value import Value
 
-def parse_config(filename: str = 'biscuit.yaml') -> Dict[str, Any]:
+strOpt = Optional[str]
+
+def parse_config(filename: strOpt = None) -> Dict[str, Any]:
 	"""
-	Parse a configuration file in JSON, TOML, or YAML format.
+	Parses a configuration file for the Biscuit application, supporting JSON, TOML, and YAML formats.
+
+	If no filename is provided, the function searches for 'biscuit.json', 'biscuit.toml', or 'biscuit.yaml'
+	in the current directory, in that order. If none are found, a FileNotFoundError is raised.
+
+	The function loads the configuration, applies default values for missing options, and returns a
+	normalized configuration dictionary with all expected fields and defaults.
 
 	Args:
-		filename (str): Path to the configuration file. Defaults to 'biscuit.yaml'.
+		filename (Optional[str]): The path to the configuration file. If None, the function will
+			attempt to find a configuration file in the current directory.
 
 	Returns:
-		dict: Parsed configuration as a dictionary.
+		Dict[str, Any]: A dictionary containing the normalized configuration, with all required
+			sections ('backup', 'database', 'key', 'log') and their respective options, each
+			wrapped in Value objects where appropriate.
 
 	Raises:
-		FileNotFoundError: If the file does not exist.
-		PermissionError: If the file is not readable.
-		ValueError: If the file extension is not supported (not JSON, TOML, or YAML).
-		json.JSONDecodeError: If the JSON file is malformed.
-		toml.TomlDecodeError: If the TOML file is malformed.
+		FileNotFoundError: If no configuration file is found and no filename is provided.
+		ValueError: If the file extension is not supported.
 	"""
+	if filename is None:
+		import os.path as path
+
+		for ext in ['json', 'toml', 'yaml']:
+			if path.exists(f'biscuit.{ext}'):
+				filename = f'biscuit.{ext}'
+				break
+		else:
+			# If no file found, raise an error
+			# This is to ensure that the user is aware that they need to provide a configuration file
+			# or that they need to generate one using the 'biscuit config generate' command.
+			raise FileNotFoundError("No configuration file found. Please provide a valid configuration file.")
+
 	if filename.endswith('.json'):
 		config = _parse_config_json(filename)
 	elif filename.endswith('.toml'):

@@ -13,7 +13,7 @@
 			"type": "debugpy"
 		},
 		{
-			"args": ["config", "generate", "-f", "json", "-o", "test.json"],
+			"args": ["config", "generate", "-f", "json"],
 			"console": "integratedTerminal",
 			"name": "biscuit: config gen",
 			"program": "${workspaceFolder}/biscuit.py",

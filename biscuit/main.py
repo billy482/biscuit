@@ -91,7 +91,7 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
 	from .commands import parsers
 
 	parser = argparse.ArgumentParser(description='Tool to backup files via ssh into encrypted database')
-	parser.add_argument('-c', '--config', default='biscuit.yaml', help='Specify alternative configuration file (default: biscuit.yaml)', metavar='FILENAME')
+	parser.add_argument('-c', '--config', help='Specify alternative configuration file', metavar='FILENAME')
 
 	sub_parser = parser.add_subparsers()
 
