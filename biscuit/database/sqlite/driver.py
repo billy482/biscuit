@@ -15,14 +15,14 @@ class SQLiteDriver(Driver):
 
 	def connect(self) -> ConnectionOptional:
 		logger = logging.getLogger('biscuit.database')
-		logger.info(f"[SQlite] Using SQLite database (version: {sqlite3.sqlite_version})")
+		logger.info(f"[SQLite] Using SQLite database (version: {sqlite3.sqlite_version})")
 
 		try:
-			logger.debug(f"Opening SQLite database at {self._path}")
-			connect = sqlite3.connect(self._path)
+			logger.debug(f"[SQLite] Opening SQLite database at {self._path}")
+			connect = sqlite3.connect(self._path, isolation_level=None, check_same_thread=False)
 
 		except sqlite3.Error as e:
-			logger.error(f"[SQlite] Error while opening database because {e}")
+			logger.error(f"[SQLite] Error while opening database because {e}")
 			return None
 
 		try:
@@ -31,11 +31,11 @@ class SQLiteDriver(Driver):
 			cursor.fetchone()
 
 		except sqlite3.Error as e:
-			logger.info(f"[SQlite] Creating SQLite database at {self._path}")
+			logger.info(f"[SQLite] Creating SQLite database at {self._path}")
 			if not self._create_db(cursor):
-				logger.error(f"[SQlite] Error while creating database")
+				logger.error(f"[SQLite] Error while creating database")
 				return None
-		logger.info("[SQlite] Connected to SQLite database")
+		logger.info("[SQLite] Connected to SQLite database")
 
 		from .connection import SQLiteConnection
 		return SQLiteConnection(connect, self)
@@ -126,7 +126,7 @@ class SQLiteDriver(Driver):
 				connection.execute(query)
 
 			except sqlite3.Error as e:
-				logger.error(f"[SQlite] Error while creating database because {e}")
+				logger.error(f"[SQLite] Error while creating database because {e}")
 				return False
 
 		return True

@@ -22,6 +22,11 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	else:
 		logger.info("Connected to the database.")
 
+	backup_id = connection.start_backup()
+	if backup_id is None:
+		logger.error("Failed to start backup.")
+		return 1
+
 	sources = parse_path_config(config['backup'])
 	for source in sources:
 		for file in source:
