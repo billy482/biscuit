@@ -57,6 +57,22 @@ class FileInfo:
 	def __lt__(self, other: 'FileInfo') -> bool:
 		return self._path < other._path
 	
+	def metadata(self) -> Dict[str, Any]:
+		"""
+		Returns the metadata of the file as a dictionary.
+
+		Returns:
+			Dict[str, Any]: A dictionary containing file metadata.
+		"""
+		return {
+			'dev': self._dev,
+			'gid': self._gid,
+			'mode': self._mode,
+			'mtime': self._mtime,
+			'size': self._size,
+			'uid': self._uid
+		}
+
 	def mode(self) -> int:
 		return self._mode
 

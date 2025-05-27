@@ -7,7 +7,7 @@ import logging
 import sqlite3
 from typing import Any, List
 from .driver import SQLiteDriver
-from ..connection import BackupId, BlockId, Connection, FileId, HostId, KeyId
+from ..connection import BackupId, BlockId, Connection, FileId, HostId, KeyId, MetadataId
 
 class SQLiteConnection(Connection):
 	def __init__(self, connection: sqlite3.Connection, driver: SQLiteDriver):
@@ -140,6 +140,28 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def get_metadata(self, hash: bytes, hash_algo: str) -> MetadataId:
+		self._logger.debug(f"[SQLite] Getting metadata for hash {hash.hex()} using {hash_algo}")
+
+		query = "SELECT id FROM metadata WHERE hash = unhex($1) AND hash_algo = $2 LIMIT 1"
+		try:
+			cursor = self._connection.execute(query, (hash.hex(), hash_algo))
+			result = cursor.fetchone()
+			if result is None:
+				self._logger.debug(f"[SQLite] Metadata for hash {hash.hex()} does not exist")
+				return None
+			else:
+				metadata_id = result[0]
+				self._logger.debug(f"[SQLite] Metadata for hash {hash.hex()} found with ID {metadata_id}")
+				return metadata_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error fetching metadata: {e}")
+			return None
+
+		finally:
+			cursor.close()
+
 	def has_key(self, key: Key) -> bool:
 		self._logger.debug(f"[SQLite] Checking if key with fingerprint {key.fingerprint()} exists in the database")
 
@@ -212,6 +234,23 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def insert_metadata(self, data: bytes, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
+		self._logger.debug(f"[SQLite] Inserting metadata with hash {hash.hex()} using {hash_algo} for key ID {key_id}")
+
+		query = "INSERT INTO metadata(hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4) RETURNING id"
+		try:
+			cursor = self._connection.execute(query, (hash_algo, hash.hex(), data.hex(), key_id))
+			metadata_id = cursor.fetchone()[0]
+			self._logger.debug(f"[SQLite] Metadata inserted with ID {metadata_id}")
+			return metadata_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error inserting metadata: {e}")
+			return None
+
+		finally:
+			cursor.close()
+
 	def is_newer_or_not_exists(self, file_info: FileInfo, host_id: HostId) -> bool:
 		self._logger.debug(f"[SQLite] Checking if file at path {file_info.path()} is newer or does not exist in the database")
 
@@ -234,6 +273,19 @@ class SQLiteConnection(Connection):
 
 		finally:
 			cursor.close()
+
+	def link_file_to_backup(self, file_id: FileId, backup_id: BackupId, metadata_id: MetadataId) -> bool:
+		self._logger.debug(f"[SQLite] Linking file ID {file_id} to backup ID {backup_id} with metadata ID {metadata_id}")
+
+		query = "INSERT INTO backups2files (backup, file, metadata) VALUES ($1, $2, $3)"
+		try:
+			self._connection.execute(query, (backup_id, file_id, metadata_id))
+			self._logger.debug(f"[SQLite] File ID {file_id} linked to backup ID {backup_id} successfully")
+			return True
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error linking file to backup: {e}")
+			return False
 
 	def link_file_to_block(self, file_id: Any, block_id: Any, sequence: int) -> bool:
 		self._logger.debug(f"[SQLite] Linking file ID {file_id} to block ID {block_id} with sequence {sequence}")

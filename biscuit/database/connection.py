@@ -11,6 +11,7 @@ BlockId: TypeAlias = Any
 FileId : TypeAlias = Any
 HostId : TypeAlias = Any
 KeyId : TypeAlias = Any
+MetadataId : TypeAlias = Any
 
 class Connection:
 	"""
@@ -69,6 +70,19 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
+	def get_metadata(self, hash: bytes, hash_algo: str) -> MetadataId:
+		"""
+		Retrieve metadata associated with a block using its hash and hash algorithm.
+
+		Args:
+			hash (bytes): The hash of the block.
+			hash_algo (str): The name of the hash algorithm used.
+
+		Returns:
+			MetadataId: The identifier of the metadata.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
 	def has_key(self, key: Key) -> bool:
 		"""
 		Check if the key exists in the database.
@@ -109,6 +123,21 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
+	def insert_metadata(self, data: bytes, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
+		"""
+		Inserts metadata into the database.
+
+		Args:
+			data (bytes): The metadata to insert.
+			hash (bytes): The hash of the metadata.
+			hash_algo (str): The name of the hash algorithm used.
+			key_id (KeyId): The identifier of the key associated with the metadata.
+
+		Returns:
+			MetadataId: The identifier of the inserted metadata.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
 	def is_newer_or_not_exists(self, file_info: FileInfo, host_id: HostId) -> bool:
 		"""
 		Check if the file is newer than the last known version or if it doesn't exist in the database.
@@ -119,6 +148,20 @@ class Connection:
 
 		Returns:
 			bool: True if the file is newer or doesn't exist, False otherwise.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
+	def link_file_to_backup(self, file_id: FileId, backup_id: BackupId, metadata_id: MetadataId) -> bool:
+		"""
+		Link a file to a backup in the database.
+
+		Args:
+			file_id (FileId): The identifier of the file.
+			backup_id (BackupId): The identifier of the backup.
+			metadata_id (MetadataId): The identifier of the metadata associated with the file.
+
+		Returns:
+			bool: True if the link was successful, False otherwise.
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 

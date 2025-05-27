@@ -101,7 +101,9 @@ class SQLiteDriver(Driver):
 				CREATE TABLE metadata (
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
 					hash_algo TEXT NOT NULL CHECK (hash_algo IN ('md5', 'sha1', 'sha256', 'sha512')),
-					hash BLOB NOT NULL, data BLOB NOT NULL
+					hash BLOB NOT NULL,
+					data BLOB NOT NULL,
+					key INTEGER REFERENCES keys(id) ON UPDATE CASCADE ON DELETE RESTRICT
 				)
 			""",
 			"""
