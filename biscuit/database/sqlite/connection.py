@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from biscuit import Host
 from biscuit.key import Key
+from biscuit.io import FileInfo
 import logging
 import sqlite3
 from typing import Any, List
 from .driver import SQLiteDriver
-from ..connection import BackupId, Connection
+from ..connection import BackupId, BlockId, Connection, FileId, HostId, KeyId
 
 class SQLiteConnection(Connection):
 	def __init__(self, connection: sqlite3.Connection, driver: SQLiteDriver):
@@ -94,6 +96,50 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def get_block(self, hash: bytes, hash_algo: str, key_id: KeyId) -> BlockId:
+		self._logger.debug(f"[SQLite] Getting block with hash {hash.hex()} using {hash_algo} for key {key_id}")
+
+		query = "SELECT id FROM blocks WHERE hash = unhex($1) AND hash_algo = $2 AND key = $3 LIMIT 1"
+		try:
+			cursor = self._connection.execute(query, (hash.hex(), hash_algo, key_id))
+			result = cursor.fetchone()
+			if result is None:
+				self._logger.debug(f"[SQLite] Block with hash {hash.hex()} does not exist")
+				return None
+			else:
+				block_id = result[0]
+				self._logger.debug(f"[SQLite] Block with hash {hash.hex()} found with ID {block_id}")
+				return block_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error fetching block: {e}")
+			return None
+
+		finally:
+			cursor.close()
+	
+	def get_key(self, key: Key) -> Any:
+		self._logger.debug(f"[SQLite] Getting key with fingerprint {key.fingerprint()}")
+
+		query = "SELECT id FROM keys WHERE fingerprint = $1 LIMIT 1"
+		try:
+			cursor = self._connection.execute(query, (key.fingerprint(),))
+			result = cursor.fetchone()
+			if result is None:
+				self._logger.debug(f"[SQLite] Key with fingerprint {key.fingerprint()} does not exist")
+				return None
+			else:
+				key_id = result[0]
+				self._logger.debug(f"[SQLite] Key with fingerprint {key.fingerprint()} found with ID {key_id}")
+				return key_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error fetching key: {e}")
+			return None
+		
+		finally:
+			cursor.close()
+
 	def has_key(self, key: Key) -> bool:
 		self._logger.debug(f"[SQLite] Checking if key with fingerprint {key.fingerprint()} exists in the database")
 
@@ -132,6 +178,76 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def insert_block(self, block: bytes, hash: bytes, hash_algo: str, key_id: KeyId) -> BlockId:
+		self._logger.debug(f"[SQLite] Inserting block with hash {key_id} using {hash_algo}")
+
+		query = "INSERT INTO blocks (hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4) RETURNING id"
+		try:
+			cursor = self._connection.execute(query, (hash_algo, hash.hex(), block.hex(), key_id))
+			block_id = cursor.fetchone()[0]
+			self._logger.debug(f"[SQLite] Block inserted with ID {block_id}")
+			return block_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error inserting block: {e}")
+			return None
+
+		finally:
+			cursor.close()
+
+	def insert_file(self, file_info: FileInfo, host_id: HostId) -> FileId:
+		self._logger.debug(f"[SQLite] Inserting file at path {file_info.path()} with host ID {host_id}")
+
+		query = "INSERT INTO files(path, last_modified, host) VALUES ($1, $2, $3) RETURNING id"
+		try:
+			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
+			file_id = cursor.fetchone()[0]
+			self._logger.debug(f"[SQLite] File at path {file_info.path()} inserted with ID {file_id}")
+			return file_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error inserting file ({file_info.path()}): {e}")
+			return None
+
+		finally:
+			cursor.close()
+
+	def is_newer_or_not_exists(self, file_info: FileInfo, host_id: HostId) -> bool:
+		self._logger.debug(f"[SQLite] Checking if file at path {file_info.path()} is newer or does not exist in the database")
+
+		query = "SELECT * FROM files WHERE path = $1 AND last_modified >= $2 AND host = $3"
+		try:
+			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
+			result = cursor.fetchone()
+
+			if result is None:
+				self._logger.debug(f"[SQLite] File at path {file_info.path()} does not exist or is newer in the database")
+				return True
+
+			else:
+				self._logger.debug(f"[SQLite] File at path {file_info.path()} is not newer than the existing one")
+				return False
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error checking file existence or modification time: {e}")
+			return False
+
+		finally:
+			cursor.close()
+
+	def link_file_to_block(self, file_id: Any, block_id: Any, sequence: int) -> bool:
+		self._logger.debug(f"[SQLite] Linking file ID {file_id} to block ID {block_id} with sequence {sequence}")
+
+		query = "INSERT INTO files2blocks VALUES ($1, $2, $3)"
+		try:
+			self._connection.execute(query, (file_id, block_id, sequence))
+			self._logger.debug(f"[SQLite] File ID {file_id} linked to block ID {block_id} successfully at sequence {sequence}")
+			return True
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error linking file to block: {e}")
+			return False
+
 	def list_keys(self) -> List:
 		query = "SELECT id, fingerprint, length FROM keys ORDER BY id"
 
@@ -143,7 +259,7 @@ class SQLiteConnection(Connection):
 			return results
 
 		except sqlite3.Error as e:
-			self._logger.error(f"[SQLite] Error importing key ({key.fingerprint('sha256')}): {e}")
+			self._logger.error(f"[SQLite] Error listing keys: {e}")
 			return []
 
 		finally:
@@ -189,5 +305,38 @@ class SQLiteConnection(Connection):
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error starting backup: {e}")
 			return None
+		finally:
+			cursor.close()
+
+	def synchronize_host(self, host: Host) -> HostId:
+		self._logger.debug(f"[SQLite] Synchronizing host: {host.get_host_name()}")
+
+		query = "SELECT id FROM hosts WHERE hostname = $1 LIMIT 1"
+		try:
+			cursor = self._connection.execute(query, (host.get_host_name(),))
+			result = cursor.fetchone()
+			if result is not None:
+				host_id = result[0]
+				self._logger.debug(f"[SQLite] Host {host.get_host_name()} already exists with ID: {host_id}")
+				return host_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error synchronizing host ({host.get_host_name()}): {e}")
+			return None
+
+		finally:
+			cursor.close()
+
+		query = "INSERT INTO hosts(hostname) VALUES ($1) RETURNING id"
+		try:
+			cursor = self._connection.execute(query, (host.get_host_name(),))
+			host_id = cursor.fetchone()[0]
+			self._logger.debug(f"[SQLite] New host {host.get_host_name()} synchronized with ID: {host_id}")
+			return host_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error inserting new host ({host.get_host_name()}): {e}")
+			return None
+
 		finally:
 			cursor.close()
