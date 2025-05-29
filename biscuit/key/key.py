@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from asn1crypto import cms, algos, core, x509
+import base64
 from cryptography.hazmat.primitives import hashes, padding, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -30,28 +32,56 @@ class Key:
 		}
 
 	def encrypt(self, data: bytes) -> bytes:
+		"""
+		Encrypts the given data using the configured symmetric algorithm and mode, then wraps the symmetric key using the recipient's public RSA key with OAEP padding, and finally packages everything into a CMS EnvelopedData structure.
+
+		Args:
+			data (bytes): The plaintext data to encrypt.
+
+		Returns:
+			bytes: The DER-encoded CMS ContentInfo structure containing the encrypted data and encrypted symmetric key.
+
+		Raises:
+			ValueError: If the required public key is not loaded or if an unsupported algorithm, mode, or padding is specified.
+
+		Process:
+			1. Loads the recipient's public key if not already loaded.
+			2. Generates a random symmetric key and IV based on the selected algorithm (AES128 or AES256).
+			3. Applies the selected block cipher mode (currently supports CBC).
+			4. Applies the specified padding scheme if required (PKCS7 or ANSIX923).
+			5. Encrypts the data with the symmetric key.
+			6. Encrypts the symmetric key with the recipient's public RSA key using OAEP.
+			7. Constructs a CMS EnvelopedData structure containing the encrypted content and encrypted key.
+			8. Returns the DER-encoded CMS ContentInfo.
+		"""
 		if self._public_key['key'] is None:
 			self.load_public_key()
 
+		algo_name = []
 		if self._algo == 'AES128':
 			key = urandom(16)
 			iv = urandom(16)
 			algo = algorithms.AES128(key)
+			algo_name.append('aes128')
 		elif self._algo == 'AES256':
 			key = urandom(32)
 			iv = urandom(16)
 			algo = algorithms.AES256(key)
+			algo_name.append('aes256')
 
 		need_padding = False
 		if self._mode == 'CBC':
 			need_padding = True
 			mode = modes.CBC(iv)
+			algo_name.append('cbc')
 
 		if need_padding:
 			if self._padding == 'PKCS7':
 				padder = padding.PKCS7(algo.block_size).padder()
+				algo_name.append('pkcs7')
 			elif self._padding == 'ANSIX923':
 				padder = padding.ANSIX923(algo.block_size).padder()
+				algo_name.append('ansix923')
 
 		cipher = Cipher(algo, mode)
 		encryptor = cipher.encryptor()
@@ -69,6 +99,49 @@ class Key:
 				label = None
 			)
 		)
+
+		enveloped_data = cms.EnvelopedData({
+			'version': 'v0',
+			'recipient_infos': [
+				cms.RecipientInfo(name='ktri', value=cms.KeyTransRecipientInfo({
+					'version': 'v0',
+					'rid': cms.RecipientIdentifier(name='issuer_and_serial_number', value=cms.IssuerAndSerialNumber({
+						'issuer': x509.Name.build({'common_name': 'biscuit'}),
+						'serial_number': 1
+					})),
+					'key_encryption_algorithm': cms.KeyEncryptionAlgorithm({
+						'algorithm': 'rsaes_oaep',
+						'parameters': algos.RSAESOAEPParams({
+							'hash_algorithm': algos.DigestAlgorithm({'algorithm': 'sha256'}),
+							'mask_gen_algorithm': algos.MaskGenAlgorithm({
+								'algorithm': 'mgf1',
+								'parameters': algos.DigestAlgorithm({'algorithm': 'sha256'})
+							}),
+							'p_source_algorithm': algos.PSourceAlgorithm({
+								'algorithm': '1.2.840.113549.1.1.9',
+								'parameters': core.OctetString(b'')
+							})
+						})
+					}),
+					'encrypted_key': encrypted_key
+				}))
+			],
+			'encrypted_content_info': cms.EncryptedContentInfo({
+				'content_type': 'data',
+				'content_encryption_algorithm': algos.EncryptionAlgorithm({
+					'algorithm': '_'.join(algo_name),
+					'parameters': core.OctetString(iv)
+				}),
+				'encrypted_content': core.OctetString(encrypted_data)
+			})
+		})
+
+		content_info = cms.ContentInfo({
+			'content_type': 'enveloped_data',
+			'content': enveloped_data
+		})
+
+		return content_info.dump()
 
 	def fingerprint(self, algo: str = 'sha256') -> strOpt:
 		"""
@@ -90,9 +163,6 @@ class Key:
 		Raises:
 			KeyError: If an unsupported algorithm is specified.
 		"""
-		import base64
-		from cryptography.hazmat.primitives import hashes
-
 		if algo in self._public_key['fingerprint']:
 			return self._public_key['fingerprint'][algo]
 
