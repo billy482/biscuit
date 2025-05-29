@@ -33,7 +33,7 @@ class Key:
 
 	def encrypt(self, data: bytes) -> bytes:
 		"""
-		Encrypts the given data using the configured symmetric algorithm and mode, then wraps the symmetric key using the recipient's public RSA key with OAEP padding, and finally packages everything into a CMS EnvelopedData structure.
+		Encrypts the given data using the specified symmetric encryption algorithm and mode, then wraps the symmetric key using the loaded public key (RSA-OAEP). The result is returned as a CMS EnvelopedData structure.
 
 		Args:
 			data (bytes): The plaintext data to encrypt.
@@ -42,17 +42,14 @@ class Key:
 			bytes: The DER-encoded CMS ContentInfo structure containing the encrypted data and encrypted symmetric key.
 
 		Raises:
-			ValueError: If the required public key is not loaded or if an unsupported algorithm, mode, or padding is specified.
+			ValueError: If the specified algorithm or mode is not supported, or if the public key is not loaded.
 
-		Process:
-			1. Loads the recipient's public key if not already loaded.
-			2. Generates a random symmetric key and IV based on the selected algorithm (AES128 or AES256).
-			3. Applies the selected block cipher mode (currently supports CBC).
-			4. Applies the specified padding scheme if required (PKCS7 or ANSIX923).
-			5. Encrypts the data with the symmetric key.
-			6. Encrypts the symmetric key with the recipient's public RSA key using OAEP.
-			7. Constructs a CMS EnvelopedData structure containing the encrypted content and encrypted key.
-			8. Returns the DER-encoded CMS ContentInfo.
+		Encryption Details:
+			- Supported algorithms: AES128, AES256, Camellia, ChaCha20.
+			- Supported modes: CBC, CFB, CFB8, CTR, GCM, OFB.
+			- Padding (if required): PKCS7 or ANSIX923.
+			- The symmetric key is encrypted with the recipient's RSA public key using OAEP with SHA-256.
+			- The output is a CMS EnvelopedData structure containing all necessary information for decryption.
 		"""
 		if self._public_key['key'] is None:
 			self.load_public_key()
