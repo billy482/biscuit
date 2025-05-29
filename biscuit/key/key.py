@@ -1,14 +1,24 @@
 # -*- coding: utf-8 -*-
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import hashes, padding, serialization
+from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rsa
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import logging
-from typing import Optional
+from os import urandom
+from typing import Any, Dict, Optional
 
 strOpt = Optional[str]
 
 class Key:
-	def __init__(self, private_key_path: str):
+	def __init__(self, config: Dict[str, Any], private_key_path: strOpt = None):
+		if private_key_path is None:
+			private_key_path = config['key']['path'].get()
+		if private_key_path is None:
+			private_key_path = 'key'
+
+		self._algo = config['key']['algo'].get()
+		self._mode = config['key']['mode'].get()
+		self._padding = config['key']['padding'].get()
 		self._public_key = {
 			'fingerprint': {},
 			'path': private_key_path + '.pub',
@@ -18,6 +28,47 @@ class Key:
 			'path': private_key_path,
 			'key': None
 		}
+
+	def encrypt(self, data: bytes) -> bytes:
+		if self._public_key['key'] is None:
+			self.load_public_key()
+
+		if self._algo == 'AES128':
+			key = urandom(16)
+			iv = urandom(16)
+			algo = algorithms.AES128(key)
+		elif self._algo == 'AES256':
+			key = urandom(32)
+			iv = urandom(16)
+			algo = algorithms.AES256(key)
+
+		need_padding = False
+		if self._mode == 'CBC':
+			need_padding = True
+			mode = modes.CBC(iv)
+
+		if need_padding:
+			if self._padding == 'PKCS7':
+				padder = padding.PKCS7(algo.block_size).padder()
+			elif self._padding == 'ANSIX923':
+				padder = padding.ANSIX923(algo.block_size).padder()
+
+		cipher = Cipher(algo, mode)
+		encryptor = cipher.encryptor()
+
+		if need_padding:
+			data = padder.update(data) + padder.finalize()
+
+		encrypted_data = encryptor.update(data) + encryptor.finalize()
+
+		encrypted_key = self._public_key['key'].encrypt(
+			key,
+			rsa_padding.OAEP(
+				mgf = rsa_padding.MGF1(hashes.SHA256()),
+				algorithm = hashes.SHA256(),
+				label = None
+			)
+		)
 
 	def fingerprint(self, algo: str = 'sha256') -> strOpt:
 		"""
@@ -67,11 +118,12 @@ class Key:
 			return None
 
 	@staticmethod
-	def generate_key_pair(private_key_path: str, key_length: int, passphrase: strOpt) -> 'Key':
+	def generate_key_pair(config: Dict[str, Any], private_key_path: str, key_length: int, passphrase: strOpt) -> 'Key':
 		"""
 		Generate a new RSA key pair and save them to files.
 
 		Args:
+			config (Dict[str, Any]): The configuration dictionary containing settings for key generation.
 			private_key_path (str): The file path where the private key will be saved.
 			key_length (int): The length (in bits) of the RSA key to generate.
 			passphrase (Optional[str]): Passphrase to encrypt the private key. If None, the private key is saved unencrypted.
@@ -118,7 +170,7 @@ class Key:
 			f.write(public_key_bytes)
 		logger.info(f"Public key saved to {private_key_path}.pub")
 
-		new_key = Key(private_key_path)
+		new_key = Key(private_key_path, config)
 		new_key._public_key['key'] = public_key
 		new_key._private_key['key'] = private_key
 

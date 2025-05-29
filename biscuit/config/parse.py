@@ -138,6 +138,18 @@ def parse_config(filename: strOpt = None) -> Dict[str, Any]:
 
 	if 'key' in config:
 		new_config['key'] = {
+			'algo': Value(
+				config['key']['algo'] if 'algo' in config['key'] else None,
+				'AES256'
+			),
+			'mode': Value(
+				config['key']['mode'] if 'mode' in config['key'] else None,
+				'CBC'
+			),
+			'padding': Value(
+				config['key']['padding'] if 'padding' in config['key'] else None,
+				'PKCS7'
+			),
 			'path': Value(
 				config['key']['path'] if 'path' in config['key'] else None,
 				'~/.biscuit/key'
@@ -145,6 +157,9 @@ def parse_config(filename: strOpt = None) -> Dict[str, Any]:
 		}
 	else:
 		new_config['key'] = {
+			'algo': Value(None, 'AES256'),
+			'mode': Value(None, 'CBC'),
+			'padding': Value(None, 'PKCS7'),
 			'path': Value(None, '~/.biscuit/key')
 		}
 

@@ -24,7 +24,7 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 			logger.error("Passphrases do not match.")
 			return 1
 
-	key = Key.generate_key_pair(args.path, args.key_length, passphrase)
+	key = Key.generate_key_pair(config, args.path, args.key_length, passphrase)
 
 	logger.info(f"Key generated successfully. Public key fingerprint: {key.fingerprint()}")
 

@@ -17,6 +17,9 @@ database:
   driver: sqlite
   path: biscuit.db
 key:
+  algo: AES256
+  mode: CBC
+  padding: PKCK7
   path: key
 log:
   levels:
