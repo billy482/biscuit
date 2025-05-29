@@ -238,28 +238,6 @@ class Key:
 
 		public_key = private_key.public_key()
 
-		with open(private_key_path, 'wb') as f:
-			if passphrase is None:
-				encryption_algorithm = serialization.NoEncryption()
-			else:
-				encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
-
-			private_key_bytes = private_key.private_bytes(
-				encoding = serialization.Encoding.PEM,
-				format = serialization.PrivateFormat.TraditionalOpenSSL,
-				encryption_algorithm = encryption_algorithm
-			)
-			f.write(private_key_bytes)
-		logger.info(f"Private key saved to {private_key_path}")	
-
-		with open(private_key_path + '.pub', 'wb') as f:
-			public_key_bytes = public_key.public_bytes(
-				encoding = serialization.Encoding.PEM,
-				format = serialization.PublicFormat.SubjectPublicKeyInfo
-			)
-			f.write(public_key_bytes)
-		logger.info(f"Public key saved to {private_key_path}.pub")
-
 		new_key = Key(config, private_key_path)
 		new_key._public_key['key'] = public_key
 		new_key._private_key['key'] = private_key
@@ -329,4 +307,71 @@ class Key:
 			return True
 		except ValueError as e:
 			logger.error(f"Failed to load private key: {e}")
+			return False
+
+	def save_public_key(self, path: strOpt = None) -> bool:
+		"""
+		Saves the public key to the specified path or to the default path if none is provided.
+
+		Args:
+		path (Optional[str]): The file path where the public key will be saved. If None, uses the default path.
+
+		Returns:
+		bool: True if the public key was saved successfully, False otherwise.
+		"""
+		if path is None:
+			path = self._public_key['path']
+
+		logger = logging.getLogger('biscuit.keyring')
+		logger.info(f"Saving public key to {path}...")
+
+		try:
+			with open(path, 'wb') as f:
+				public_key_bytes = self._public_key['key'].public_bytes(
+					encoding = serialization.Encoding.PEM,
+					format = serialization.PublicFormat.SubjectPublicKeyInfo
+				)
+				f.write(public_key_bytes)
+			logger.info("Public key saved successfully.")
+			return True
+
+		except Exception as e:
+			logger.error(f"Failed to save public key: {e}")
+			return False
+
+	def save_private_key(self, path: strOpt = None, passphrase: strOpt = None) -> bool:
+		"""
+		Saves the private key to the specified path or to the default path if none is provided.
+
+		Args:
+		path (Optional[str]): The file path where the private key will be saved. If None, uses the default path.
+		passphrase (Optional[str]): The passphrase to encrypt the private key. If None, the key is saved unencrypted.
+
+		Returns:
+		bool: True if the private key was saved successfully, False otherwise.
+		"""
+		if path is None:
+			path = self._private_key['path']
+
+		logger = logging.getLogger('biscuit.keyring')
+		logger.info(f"Saving private key to {path}...")
+
+		try:
+			with open(path, 'wb') as f:
+				if passphrase is None:
+					encryption_algorithm = serialization.NoEncryption()
+				else:
+					encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
+
+				private_key_bytes = self._private_key['key'].private_bytes(
+					encoding = serialization.Encoding.PEM,
+					format = serialization.PrivateFormat.TraditionalOpenSSL,
+					encryption_algorithm = encryption_algorithm
+				)
+				f.write(private_key_bytes)
+			logger.info("Private key saved successfully.")
+			return True
+
+		except Exception as e:
+			logger.error(f"Failed to save private key: {e}")
 			return False

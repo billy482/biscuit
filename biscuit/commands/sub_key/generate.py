@@ -25,6 +25,8 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 			return 1
 
 	key = Key.generate_key_pair(config, args.path, args.key_length, passphrase)
+	key.save_private_key()
+	key.save_public_key()
 
 	logger.info(f"Key generated successfully. Public key fingerprint: {key.fingerprint()}")
 
