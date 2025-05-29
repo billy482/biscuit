@@ -68,20 +68,43 @@ class Key:
 			iv = urandom(16)
 			algo = algorithms.AES256(key)
 			algo_name.append('aes256')
+		elif self._algo == 'Camellia':
+			key = urandom(32)
+			iv = urandom(16)
+			algo = algorithms.Camellia(key)
+			algo_name.append('camellia')
+		elif self._algo == 'ChaCha20':
+			key = urandom(32)
+			iv = urandom(12)  # ChaCha20 uses a 12-byte nonce
+			algo = algorithms.ChaCha20(key, iv)
+			algo_name.append('chacha20')
 
 		need_padding = False
 		if self._mode == 'CBC':
 			need_padding = True
 			mode = modes.CBC(iv)
 			algo_name.append('cbc')
+		elif self._mode == 'CFB':
+			mode = modes.CFB(iv)
+			algo_name.append('cfb')
+		elif self._mode == 'CFB8':
+			mode = modes.CFB8(iv)
+			algo_name.append('cfb8')
+		elif self._mode == 'CTR':
+			mode = modes.CTR(iv)
+			algo_name.append('ctr')
+		elif self._mode == 'GCM':
+			mode = modes.GCM(iv)
+			algo_name.append('gcm')
+		elif self._mode == 'OFB':
+			mode = modes.OFB(iv)
+			algo_name.append('ofb')
 
 		if need_padding:
 			if self._padding == 'PKCS7':
 				padder = padding.PKCS7(algo.block_size).padder()
-				algo_name.append('pkcs7')
 			elif self._padding == 'ANSIX923':
 				padder = padding.ANSIX923(algo.block_size).padder()
-				algo_name.append('ansix923')
 
 		cipher = Cipher(algo, mode)
 		encryptor = cipher.encryptor()
@@ -240,7 +263,7 @@ class Key:
 			f.write(public_key_bytes)
 		logger.info(f"Public key saved to {private_key_path}.pub")
 
-		new_key = Key(private_key_path, config)
+		new_key = Key(config, private_key_path)
 		new_key._public_key['key'] = public_key
 		new_key._private_key['key'] = private_key
 

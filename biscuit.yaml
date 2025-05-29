@@ -19,7 +19,7 @@ database:
 key:
   algo: AES256
   mode: CBC
-  padding: PKCK7
+  padding: PKCS7
   path: key
 log:
   levels:
