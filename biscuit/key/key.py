@@ -31,6 +31,97 @@ class Key:
 			'key': None
 		}
 
+	def decrypt(self, data: bytes, passphrase: strOpt = None) -> bytes:
+		"""
+		Decrypts CMS EnvelopedData using the loaded private key.
+
+		Args:
+			data (bytes): The CMS EnvelopedData to decrypt.
+			passphrase (Optional[str]): Passphrase to unlock the private key, if required.
+
+		Returns:
+			bytes: The decrypted content.
+
+		Raises:
+			ValueError: If the CMS message is not of type EnvelopedData or if an unsupported algorithm is encountered.
+			Exception: If decryption or unpadding fails.
+
+		Notes:
+			- Supports AES128, AES256, Camellia, and ChaCha20 algorithms with various modes (CBC, CFB, CFB8, CTR, GCM, OFB).
+			- Handles PKCS7 and ANSI X.923 padding when required.
+		"""
+		if self._private_key['key'] is None:
+			self.load_private_key(passphrase)
+
+		content_info = cms.ContentInfo.load(data)
+
+		if content_info['content_type'].native != 'enveloped_data':
+			raise ValueError("Le message CMS n'est pas de type EnvelopedData.")
+
+		enveloped_data = content_info['content']
+		recipient_info = enveloped_data['recipient_infos'][0]
+
+		encrypted_key = recipient_info.chosen['encrypted_key'].native
+		key = self._private_key['key'].decrypt(
+			encrypted_key,
+			rsa_padding.OAEP(
+				mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
+				algorithm=hashes.SHA256(),
+				label=None
+			)
+		)
+
+		encrypted_content_info = enveloped_data['encrypted_content_info']
+		content_encryption_algorithm = encrypted_content_info['content_encryption_algorithm']
+		encrypted_content = encrypted_content_info['encrypted_content'].native
+
+		iv = content_encryption_algorithm['parameters'].native
+
+		(algo_name, mode_name) = content_encryption_algorithm['algorithm'].native.split('_')
+		if algo_name == 'aes128':
+			algo = algorithms.AES128(key)
+		elif algo_name == 'aes256':
+			algo = algorithms.AES256(key)
+		elif algo_name == 'camellia':
+			algo = algorithms.Camellia(key)
+		elif algo_name == 'chacha20':
+			algo = algorithms.ChaCha20(key, iv)
+		else:
+			raise ValueError(f"Unsupported algorithm: {algo_name}")
+
+		need_padding = False
+		if mode_name == 'cbc':
+			need_padding = True
+			mode = modes.CBC(iv)
+		elif mode_name == 'cfb':
+			mode = modes.CFB(iv)
+		elif mode_name == 'cfb8':
+			mode = modes.CFB8(iv)
+		elif mode_name == 'ctr':
+			mode = modes.CTR(iv)
+		elif mode_name == 'gcm':
+			mode = modes.GCM(iv)
+		elif mode_name == 'ofb':
+			mode = modes.OFB(iv)
+		else:
+			raise ValueError(f"Unsupported mode: {mode_name}")
+
+		cipher = Cipher(algo, mode)
+		decryptor = cipher.decryptor()
+		raw_data = decryptor.update(encrypted_content) + decryptor.finalize()
+
+		if need_padding:
+			if raw_data[-1] == 0x01:
+				unpadder = padding.PKCS7(algo.block_size).unpadder()
+			elif raw_data[-2] == 0x00:
+				unpadder = padding.ANSIX923(algo.block_size).unpadder()
+			elif raw_data[-1] == raw_data[-2]:
+				unpadder = padding.PKCS7(algo.block_size).unpadder()
+
+			raw_data = unpadder.update(raw_data) + unpadder.finalize()
+
+		return raw_data
+
 	def encrypt(self, data: bytes) -> bytes:
 		"""
 		Encrypts the given data using the specified symmetric encryption algorithm and mode, then wraps the symmetric key using the loaded public key (RSA-OAEP). The result is returned as a CMS EnvelopedData structure.
