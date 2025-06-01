@@ -32,12 +32,12 @@ def check_configuration(config: Dict, new_config: Dict) -> None:
 		if config['cipher'] not in algos:
 			logger.warning(
 				f"Invalid cipher algorithm '{config['cipher']}' specified. "
-				f"Using default 'ChaCha20Poly1305'."
+				f"Using default 'AES256-GCM'."
 			)
-			new_config['cipher'] = Value(None, 'ChaCha20Poly1305')
+			new_config['cipher'] = Value(None, 'AES256-GCM')
 		else:
-			new_config['cipher'] = Value(config['cipher'], 'ChaCha20Poly1305')
+			new_config['cipher'] = Value(config['cipher'], 'AES256-GCM')
 	else:
-		new_config['cipher'] = Value(None, 'ChaCha20Poly1305')
+		new_config['cipher'] = Value(None, 'AES256-GCM')
 
 	new_config['path'] = Value(config['path'] if 'path' in config else None, '~/.biscuit/key')
