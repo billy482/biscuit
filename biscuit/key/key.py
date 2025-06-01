@@ -82,7 +82,7 @@ class Key:
 			cipher = AESGCM(key)
 			return cipher.decrypt(iv, encrypted_data, aad)
 
-		def decrypt_chacha20poly1305(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+		def decrypt_chacha20poly1305(key: bytes, nonce: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
 			from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 			cipher = ChaCha20Poly1305(key)
