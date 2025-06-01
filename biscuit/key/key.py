@@ -55,7 +55,7 @@ class Key:
 		content_info = cms.ContentInfo.load(data)
 
 		if content_info['content_type'].native != 'enveloped_data':
-			raise ValueError("Le message CMS n'est pas de type EnvelopedData.")
+			raise ValueError("The CMS message is not of type EnvelopedData.")
 
 		enveloped_data = content_info['content']
 		recipient_info = enveloped_data['recipient_infos'][0]
