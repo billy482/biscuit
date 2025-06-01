@@ -136,32 +136,9 @@ def parse_config(filename: strOpt = None) -> Dict[str, Any]:
 	from biscuit.database import check_configuration as check_database_configuration
 	check_database_configuration(new_config['database']['driver'].get(), config['database'], new_config['database'])
 
-	if 'key' in config:
-		new_config['key'] = {
-			'algo': Value(
-				config['key']['algo'] if 'algo' in config['key'] else None,
-				'AES256'
-			),
-			'mode': Value(
-				config['key']['mode'] if 'mode' in config['key'] else None,
-				'CBC'
-			),
-			'padding': Value(
-				config['key']['padding'] if 'padding' in config['key'] else None,
-				'PKCS7'
-			),
-			'path': Value(
-				config['key']['path'] if 'path' in config['key'] else None,
-				'~/.biscuit/key'
-			)
-		}
-	else:
-		new_config['key'] = {
-			'algo': Value(None, 'AES256'),
-			'mode': Value(None, 'CBC'),
-			'padding': Value(None, 'PKCS7'),
-			'path': Value(None, '~/.biscuit/key')
-		}
+	new_config['key'] = {}
+	from biscuit.key import check_configuration as check_key_configuration
+	check_key_configuration(config['key'], new_config['key'])
 
 	if 'log' in config:
 		new_config['log'] = {

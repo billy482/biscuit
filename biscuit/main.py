@@ -68,13 +68,6 @@ def main(argv: List[str]) -> int:
 	config = parse_config(args.config)
 	_configure_logging(config['log'])
 
-	logger = logging.getLogger('biscuit.core')
-
-	from .key import check_configuration as check_config_key
-	if not check_config_key(config['key']):
-		logger.error("Invalid key configuration, exiting.")
-		return 1
-
 	if hasattr(args, 'func'):
 		return args.func(args, config)
 	else:

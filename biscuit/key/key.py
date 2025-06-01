@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rs
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import logging
 from os import urandom
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 strOpt = Optional[str]
 
@@ -18,9 +18,7 @@ class Key:
 		if private_key_path is None:
 			private_key_path = 'key'
 
-		self._algo = config['key']['algo'].get()
-		self._mode = config['key']['mode'].get()
-		self._padding = config['key']['padding'].get()
+		self._cipher = config['key']['cipher'].get()
 		self._public_key = {
 			'fingerprint': {},
 			'path': private_key_path + '.pub',
@@ -77,50 +75,37 @@ class Key:
 
 		iv = content_encryption_algorithm['parameters'].native
 
-		(algo_name, mode_name) = content_encryption_algorithm['algorithm'].native.split('_')
-		if algo_name == 'aes128':
-			algo = algorithms.AES128(key)
-		elif algo_name == 'aes256':
-			algo = algorithms.AES256(key)
-		elif algo_name == 'camellia':
-			algo = algorithms.Camellia(key)
-		elif algo_name == 'chacha20':
-			algo = algorithms.ChaCha20(key, iv)
-		else:
-			raise ValueError(f"Unsupported algorithm: {algo_name}")
 
-		need_padding = False
-		if mode_name == 'cbc':
-			need_padding = True
-			mode = modes.CBC(iv)
-		elif mode_name == 'cfb':
-			mode = modes.CFB(iv)
-		elif mode_name == 'cfb8':
-			mode = modes.CFB8(iv)
-		elif mode_name == 'ctr':
-			mode = modes.CTR(iv)
-		elif mode_name == 'gcm':
-			mode = modes.GCM(iv)
-		elif mode_name == 'ofb':
-			mode = modes.OFB(iv)
-		else:
-			raise ValueError(f"Unsupported mode: {mode_name}")
+		def decrypt_aes256_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-		cipher = Cipher(algo, mode)
-		decryptor = cipher.decryptor()
-		raw_data = decryptor.update(encrypted_content) + decryptor.finalize()
+			cipher = AESGCM(key)
+			return cipher.decrypt(iv, encrypted_data, aad)
 
-		if need_padding:
-			if raw_data[-1] == 0x01:
-				unpadder = padding.PKCS7(algo.block_size).unpadder()
-			elif raw_data[-2] == 0x00:
-				unpadder = padding.ANSIX923(algo.block_size).unpadder()
-			elif raw_data[-1] == raw_data[-2]:
-				unpadder = padding.PKCS7(algo.block_size).unpadder()
+		def decrypt_chacha20poly1305(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+			from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-			raw_data = unpadder.update(raw_data) + unpadder.finalize()
+			cipher = ChaCha20Poly1305(key)
+			return cipher.encrypt(nonce, encrypted_data, aad)
 
-		return raw_data
+		algorithms = {
+			'aes256_gcm': {
+				'fonction': decrypt_aes256_gcm,
+				'name': 'AES256-GCM'
+			},
+			'1.2.840.113549.1.9.16.3.18': {
+				'fonction': decrypt_chacha20poly1305,
+				'name': 'ChaCha20Poly1305'
+			},
+			'2.16.840.1.101.3.4.1.46': {
+				'fonction': decrypt_aes256_gcm,
+				'name': 'AES256-GCM'
+			}
+		}
+
+		oid = content_encryption_algorithm['algorithm'].native
+		aad = f'Biscuit Encrypted Data: {self.fingerprint("sha256")}'.encode('utf-8')
+		return algorithms[oid]['fonction'](key, iv, aad, encrypted_content)
 
 	def encrypt(self, data: bytes) -> bytes:
 		"""
@@ -145,62 +130,41 @@ class Key:
 		if self._public_key['key'] is None:
 			self.load_public_key()
 
-		algo_name = []
-		if self._algo == 'AES128':
-			key = urandom(16)
-			iv = urandom(16)
-			algo = algorithms.AES128(key)
-			algo_name.append('aes128')
-		elif self._algo == 'AES256':
-			key = urandom(32)
-			iv = urandom(16)
-			algo = algorithms.AES256(key)
-			algo_name.append('aes256')
-		elif self._algo == 'Camellia':
-			key = urandom(32)
-			iv = urandom(16)
-			algo = algorithms.Camellia(key)
-			algo_name.append('camellia')
-		elif self._algo == 'ChaCha20':
-			key = urandom(32)
-			iv = urandom(12)  # ChaCha20 uses a 12-byte nonce
-			algo = algorithms.ChaCha20(key, iv)
-			algo_name.append('chacha20')
+		def encrypt_aes256_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
+			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-		need_padding = False
-		if self._mode == 'CBC':
-			need_padding = True
-			mode = modes.CBC(iv)
-			algo_name.append('cbc')
-		elif self._mode == 'CFB':
-			mode = modes.CFB(iv)
-			algo_name.append('cfb')
-		elif self._mode == 'CFB8':
-			mode = modes.CFB8(iv)
-			algo_name.append('cfb8')
-		elif self._mode == 'CTR':
-			mode = modes.CTR(iv)
-			algo_name.append('ctr')
-		elif self._mode == 'GCM':
-			mode = modes.GCM(iv)
-			algo_name.append('gcm')
-		elif self._mode == 'OFB':
-			mode = modes.OFB(iv)
-			algo_name.append('ofb')
+			key = AESGCM.generate_key(bit_length=256)
+			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
-		if need_padding:
-			if self._padding == 'PKCS7':
-				padder = padding.PKCS7(algo.block_size).padder()
-			elif self._padding == 'ANSIX923':
-				padder = padding.ANSIX923(algo.block_size).padder()
+			cipher = AESGCM(key)
+			ct = cipher.encrypt(iv, data, aad)
 
-		cipher = Cipher(algo, mode)
-		encryptor = cipher.encryptor()
+			return key, iv, ct
 
-		if need_padding:
-			data = padder.update(data) + padder.finalize()
+		def encrypt_chacha20poly1305(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
+			from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-		encrypted_data = encryptor.update(data) + encryptor.finalize()
+			key = ChaCha20Poly1305.generate_key()
+			nonce = urandom(12)  # ChaCha20 uses a 12-byte nonce
+
+			cipher = ChaCha20Poly1305(key)
+			ct = cipher.encrypt(nonce, data, aad)
+
+			return key, nonce, ct
+
+		algorithms = {
+			'AES256-GCM': {
+				'fonction': encrypt_aes256_gcm,
+				'oid': 'aes256_gcm'
+			},
+			'ChaCha20Poly1305': {
+				'fonction': encrypt_chacha20poly1305,
+				'oid': '1.2.840.113549.1.9.16.3.18'
+			}
+		}
+
+		aad = f'Biscuit Encrypted Data: {self.fingerprint("sha256")}'.encode('utf-8')
+		key, iv, encrypted_data = algorithms[self._cipher]['fonction'](aad, data)
 
 		encrypted_key = self._public_key['key'].encrypt(
 			key,
@@ -217,7 +181,7 @@ class Key:
 				cms.RecipientInfo(name='ktri', value=cms.KeyTransRecipientInfo({
 					'version': 'v0',
 					'rid': cms.RecipientIdentifier(name='issuer_and_serial_number', value=cms.IssuerAndSerialNumber({
-						'issuer': x509.Name.build({'common_name': 'biscuit'}),
+						'issuer': x509.Name.build({'common_name': 'Biscuit'}),
 						'serial_number': 1
 					})),
 					'key_encryption_algorithm': cms.KeyEncryptionAlgorithm({
@@ -240,7 +204,7 @@ class Key:
 			'encrypted_content_info': cms.EncryptedContentInfo({
 				'content_type': 'data',
 				'content_encryption_algorithm': algos.EncryptionAlgorithm({
-					'algorithm': '_'.join(algo_name),
+					'algorithm': algorithms[self._cipher]['oid'],
 					'parameters': core.OctetString(iv)
 				}),
 				'encrypted_content': core.OctetString(encrypted_data)

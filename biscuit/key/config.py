@@ -1,39 +1,43 @@
 # -*- coding: utf-8 -*-
 
+from biscuit.config.value import Value
 import logging
-from typing import Any, Dict
+from typing import Dict
 
-def check_configuration(config: Dict[str, Any]) -> bool:
+algos = [
+	'AES256-GCM',
+	'ChaCha20Poly1305',
+]
+
+def check_configuration(config: Dict, new_config: Dict) -> None:
 	"""
-	Check if the configuration is valid.
-	
+	Validates and updates the provided configuration dictionary for cryptographic settings.
+
+	This function checks if the 'cipher' key in the `config` dictionary is present and valid
+	according to the supported algorithms (`algos`). If the specified cipher is invalid or missing,
+	it logs a warning and sets the cipher to the default value 'ChaCha20Poly1305' in the `new_config`
+	dictionary. It also ensures that the 'path' key is set in `new_config`, defaulting to '~/.biscuit/key'
+	if not provided.
+
 	Args:
-		config (Dict[str, Any]): The configuration dictionary to check.
-		
+		config (Dict): The original configuration dictionary to validate.
+		new_config (Dict): The dictionary to update with validated configuration values.
+
 	Returns:
-		bool: True if the configuration is valid, False otherwise.
+		None
 	"""
 	logger = logging.getLogger('biscuit.core')
 
-	algo = config['algo'].get()
-	if algo not in ['AES128', 'AES256', 'Camellia', 'ChaCha20']:
-		logger.error(f"Unsupported algorithm: {algo}")
-		return False
-
-	mode = config['mode'].get()
-	padding = config['padding'].get()
-	if mode not in ['CBC', 'CFB', 'CFB8', 'CTR', 'GCM', 'OFB']:
-		logger.error(f"Unsupported mode: {mode}")
-		return False
-	elif mode in ['CBC']:
-		if padding not in ['ANSIX923', 'PKCS7']:
-			logger.error(f"Unsupported padding: {padding}")
-			return False
-		logger.debug(f"Configuration is valid: {config}")
-		logger.debug(f"Algorithm: {algo}, Mode: {mode}, Padding: {padding}")
+	if 'cipher' in config:
+		if config['cipher'] not in algos:
+			logger.warning(
+				f"Invalid cipher algorithm '{config['cipher']}' specified. "
+				f"Using default 'ChaCha20Poly1305'."
+			)
+			new_config['cipher'] = Value(None, 'ChaCha20Poly1305')
+		else:
+			new_config['cipher'] = Value(config['cipher'], 'ChaCha20Poly1305')
 	else:
-		logger.debug(f"Configuration is valid: {config}")
-		logger.debug(f"Algorithm: {algo}, Mode: {mode}")
-		logger.debug(f"Mode {mode} does not require padding, skipping check.")
+		new_config['cipher'] = Value(None, 'ChaCha20Poly1305')
 
-	return True
+	new_config['path'] = Value(config['path'] if 'path' in config else None, '~/.biscuit/key')
