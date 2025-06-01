@@ -78,19 +78,7 @@ class Key:
 		iv = content_encryption_algorithm['parameters'].native
 
 
-		def decrypt_aes128_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
-			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-			cipher = AESGCM(key)
-			return cipher.decrypt(iv, encrypted_data, aad)
-
-		def decrypt_aes192_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
-			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-			cipher = AESGCM(key)
-			return cipher.decrypt(iv, encrypted_data, aad)
-
-		def decrypt_aes256_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+		def decrypt_aes_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 			cipher = AESGCM(key)
@@ -104,15 +92,15 @@ class Key:
 
 		algorithms = {
 			'aes128_gcm': {
-				'fonction': decrypt_aes128_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES128-GCM'
 			},
 			'aes192_gcm': {
-				'fonction': decrypt_aes192_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES192-GCM'
 			},
 			'aes256_gcm': {
-				'fonction': decrypt_aes256_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES256-GCM'
 			},
 
@@ -121,15 +109,15 @@ class Key:
 				'name': 'ChaCha20Poly1305'
 			},
 			'2.16.840.1.101.3.4.1.6': {
-				'fonction': decrypt_aes128_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES128-GCM'
 			},
 			'2.16.840.1.101.3.4.1.26': {
-				'fonction': decrypt_aes192_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES192-GCM'
 			},
 			'2.16.840.1.101.3.4.1.46': {
-				'fonction': decrypt_aes256_gcm,
+				'fonction': decrypt_aes_gcm,
 				'name': 'AES256-GCM'
 			}
 		}
