@@ -31,16 +31,16 @@ class Key:
 
 	def decrypt(self, data: bytes, passphrase: strOpt = None) -> bytes:
 		"""
-		Decrypts CMS EnvelopedData using the loaded private key.
+		Decrypts CMS EnvelopedData using the private key and specified passphrase.
 
-		This method decrypts data that has been encrypted using CMS (Cryptographic Message Syntax) EnvelopedData.
-		It supports AES-GCM and ChaCha20Poly1305 encryption algorithms, identified by their OIDs or names.
-		The method first decrypts the content encryption key using the private RSA key, then uses the appropriate
-		symmetric cipher to decrypt the actual content.
+		This method loads the private key if not already loaded, parses the CMS structure,
+		decrypts the session key using RSA OAEP, and then decrypts the content using the
+		appropriate symmetric algorithm (AES-GCM, AES-CCM, or ChaCha20Poly1305) based on
+		the encryption algorithm OID.
 
 		Args:
 			data (bytes): The CMS EnvelopedData to decrypt.
-			passphrase (Optional[str]): Optional passphrase to load the private key if not already loaded.
+			passphrase (Optional[str]): The passphrase to unlock the private key, if required.
 
 		Returns:
 			bytes: The decrypted content.
@@ -48,7 +48,7 @@ class Key:
 		Raises:
 			ValueError: If the CMS message is not of type EnvelopedData.
 			KeyError: If the encryption algorithm is not supported.
-			Exception: If decryption fails due to invalid key, data, or parameters.
+			Exception: If decryption fails due to invalid key, passphrase, or corrupted data.
 		"""
 		if self._private_key['key'] is None:
 			self.load_private_key(passphrase)
@@ -78,6 +78,12 @@ class Key:
 		iv = content_encryption_algorithm['parameters'].native
 
 
+		def decrypt_aes_ccm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+			from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+
+			cipher = AESCCM(key)
+			return cipher.decrypt(iv, encrypted_data, aad)
+
 		def decrypt_aes_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -91,6 +97,14 @@ class Key:
 			return cipher.encrypt(nonce, encrypted_data, aad)
 
 		algorithms = {
+			'aes128_ccm': {
+				'fonction': decrypt_aes_ccm,
+				'name': 'AES128-CCM'
+			},
+			'aes256_ccm': {
+				'fonction': decrypt_aes_ccm,
+				'name': 'AES256-CCM'
+			},
 			'aes128_gcm': {
 				'fonction': decrypt_aes_gcm,
 				'name': 'AES128-GCM'
@@ -112,6 +126,10 @@ class Key:
 				'fonction': decrypt_aes_gcm,
 				'name': 'AES128-GCM'
 			},
+			'2.16.840.1.101.3.4.1.7': {
+				'fonction': decrypt_aes_ccm,
+				'name': 'AES128-CCM'
+			},
 			'2.16.840.1.101.3.4.1.26': {
 				'fonction': decrypt_aes_gcm,
 				'name': 'AES192-GCM'
@@ -119,6 +137,10 @@ class Key:
 			'2.16.840.1.101.3.4.1.46': {
 				'fonction': decrypt_aes_gcm,
 				'name': 'AES256-GCM'
+			},
+			'2.16.840.1.101.3.4.1.47': {
+				'fonction': decrypt_aes_ccm,
+				'name': 'AES256-CCM'
 			}
 		}
 
@@ -128,33 +150,54 @@ class Key:
 
 	def encrypt(self, data: bytes) -> bytes:
 		"""
-		Encrypts the given data using a hybrid encryption scheme.
+		Encrypts the given data using a randomly generated symmetric key and the selected cipher algorithm.
+		The symmetric key is then encrypted with the loaded public RSA key using OAEP padding.
+		The result is returned as a CMS EnvelopedData structure.
 
-		This method encrypts the input data using a symmetric cipher (AES-GCM or ChaCha20Poly1305),
-		then encrypts the symmetric key with the loaded RSA public key using OAEP padding.
-		The result is packaged in a CMS EnvelopedData structure.
+		Supported cipher algorithms include:
+			- AES128-CCM
+			- AES256-CCM
+			- AES128-GCM
+			- AES192-GCM
+			- AES256-GCM
+			- ChaCha20Poly1305
 
-		Symmetric cipher and parameters are selected based on `self._cipher`.
-		Supported ciphers:
-			- 'AES128-GCM'
-			- 'AES192-GCM'
-			- 'AES256-GCM'
-			- 'ChaCha20Poly1305'
-
-		The Additional Authenticated Data (AAD) includes a fingerprint of the public key.
-
-		Returns:
-			bytes: The DER-encoded CMS ContentInfo structure containing the encrypted data.
-
-		Raises:
-			KeyError: If the selected cipher is not supported.
-			Exception: If the public key is not loaded or encryption fails.
+		The Additional Authenticated Data (AAD) includes a fingerprint of the public key for integrity.
 
 		Args:
 			data (bytes): The plaintext data to encrypt.
+
+		Returns:
+			bytes: The DER-encoded CMS EnvelopedData structure containing the encrypted content and encrypted symmetric key.
+
+		Raises:
+			KeyError: If the selected cipher algorithm is not supported.
+			Exception: If the public key is not loaded or encryption fails.
 		"""
 		if self._public_key['key'] is None:
 			self.load_public_key()
+
+		def encrypt_aes128_ccm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
+			from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+
+			key = AESCCM.generate_key(bit_length=128)
+			iv = urandom(12)  # AES GCM uses a 12-byte nonce
+
+			cipher = AESCCM(key)
+			ct = cipher.encrypt(iv, data, aad)
+
+			return key, iv, ct
+
+		def encrypt_aes256_ccm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
+			from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+
+			key = AESCCM.generate_key(bit_length=256)
+			iv = urandom(12)  # AES GCM uses a 12-byte nonce
+
+			cipher = AESCCM(key)
+			ct = cipher.encrypt(iv, data, aad)
+
+			return key, iv, ct
 
 		def encrypt_aes128_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -201,6 +244,14 @@ class Key:
 			return key, nonce, ct
 
 		algorithms = {
+			'AES128-CCM': {
+				'fonction': encrypt_aes128_ccm,
+				'oid': 'aes128_ccm'
+			},
+			'AES256-CCM': {
+				'fonction': encrypt_aes256_ccm,
+				'oid': 'aes256_ccm'
+			},
 			'AES128-GCM': {
 				'fonction': encrypt_aes128_gcm,
 				'oid': 'aes128_gcm'

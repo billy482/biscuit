@@ -5,6 +5,8 @@ import logging
 from typing import Dict
 
 algos = [
+	'AES128-CCM',
+	'AES256-CCM',
 	'AES128-GCM',
 	'AES192-GCM',
 	'AES256-GCM',
