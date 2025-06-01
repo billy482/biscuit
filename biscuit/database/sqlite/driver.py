@@ -77,7 +77,7 @@ class SQLiteDriver(Driver):
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
 					path TEXT NOT NULL,
 					last_modified INTEGER NOT NULL DEFAULT (unixepoch()),
-					host INTEGER NULL REFERENCES host(id) ON UPDATE CASCADE ON DELETE RESTRICT
+					host INTEGER NULL REFERENCES hosts(id) ON UPDATE CASCADE ON DELETE RESTRICT
 				)
 			""",
 			"""
