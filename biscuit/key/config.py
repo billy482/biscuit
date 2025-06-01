@@ -6,6 +6,7 @@ from typing import Dict
 
 algos = [
 	'AES128-GCM',
+	'AES192-GCM',
 	'AES256-GCM',
 	'ChaCha20Poly1305',
 ]

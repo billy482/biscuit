@@ -84,6 +84,12 @@ class Key:
 			cipher = AESGCM(key)
 			return cipher.decrypt(iv, encrypted_data, aad)
 
+		def decrypt_aes192_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
+			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+			cipher = AESGCM(key)
+			return cipher.decrypt(iv, encrypted_data, aad)
+
 		def decrypt_aes256_gcm(key: bytes, iv: bytes, aad: bytes, encrypted_data: bytes) -> bytes:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -101,6 +107,10 @@ class Key:
 				'fonction': decrypt_aes128_gcm,
 				'name': 'AES128-GCM'
 			},
+			'aes192_gcm': {
+				'fonction': decrypt_aes192_gcm,
+				'name': 'AES192-GCM'
+			},
 			'aes256_gcm': {
 				'fonction': decrypt_aes256_gcm,
 				'name': 'AES256-GCM'
@@ -114,6 +124,10 @@ class Key:
 				'fonction': decrypt_aes128_gcm,
 				'name': 'AES128-GCM'
 			},
+			'2.16.840.1.101.3.4.1.26': {
+				'fonction': decrypt_aes192_gcm,
+				'name': 'AES192-GCM'
+			},
 			'2.16.840.1.101.3.4.1.46': {
 				'fonction': decrypt_aes256_gcm,
 				'name': 'AES256-GCM'
@@ -126,23 +140,30 @@ class Key:
 
 	def encrypt(self, data: bytes) -> bytes:
 		"""
-		Encrypts the given data using the configured symmetric cipher (AES128-GCM, AES256-GCM, or ChaCha20Poly1305),
-		then encrypts the symmetric key with the loaded RSA public key using OAEP padding. The result is wrapped in a
-		CMS EnvelopedData structure.
+		Encrypts the given data using a hybrid encryption scheme.
+
+		This method encrypts the input data using a symmetric cipher (AES-GCM or ChaCha20Poly1305),
+		then encrypts the symmetric key with the loaded RSA public key using OAEP padding.
+		The result is packaged in a CMS EnvelopedData structure.
+
+		Symmetric cipher and parameters are selected based on `self._cipher`.
+		Supported ciphers:
+			- 'AES128-GCM'
+			- 'AES192-GCM'
+			- 'AES256-GCM'
+			- 'ChaCha20Poly1305'
+
+		The Additional Authenticated Data (AAD) includes a fingerprint of the public key.
+
+		Returns:
+			bytes: The DER-encoded CMS ContentInfo structure containing the encrypted data.
+
+		Raises:
+			KeyError: If the selected cipher is not supported.
+			Exception: If the public key is not loaded or encryption fails.
 
 		Args:
 			data (bytes): The plaintext data to encrypt.
-
-		Returns:
-			bytes: The DER-encoded CMS ContentInfo structure containing the encrypted data and encrypted symmetric key.
-
-		Raises:
-			ValueError: If the public key is not loaded or the cipher is not supported.
-
-		Notes:
-			- The Additional Authenticated Data (AAD) used for encryption includes the fingerprint of the public key.
-			- The function supports three symmetric encryption algorithms: AES128-GCM, AES256-GCM, and ChaCha20Poly1305.
-			- The symmetric key is encrypted using RSAES-OAEP with SHA-256.
 		"""
 		if self._public_key['key'] is None:
 			self.load_public_key()
@@ -151,6 +172,17 @@ class Key:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 			key = AESGCM.generate_key(bit_length=128)
+			iv = urandom(12)  # AES GCM uses a 12-byte nonce
+
+			cipher = AESGCM(key)
+			ct = cipher.encrypt(iv, data, aad)
+
+			return key, iv, ct
+
+		def encrypt_aes192_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
+			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+			key = AESGCM.generate_key(bit_length=192)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESGCM(key)
@@ -181,6 +213,14 @@ class Key:
 			return key, nonce, ct
 
 		algorithms = {
+			'AES128-GCM': {
+				'fonction': encrypt_aes128_gcm,
+				'oid': 'aes128_gcm'
+			},
+			'AES192-GCM': {
+				'fonction': encrypt_aes192_gcm,
+				'oid': 'aes192_gcm'
+			},
 			'AES128-GCM': {
 				'fonction': encrypt_aes128_gcm,
 				'oid': 'aes128_gcm'
