@@ -33,7 +33,12 @@ class Key:
 		"""
 		Decrypts CMS EnvelopedData using the loaded private key.
 
-		Parameters:
+		This method decrypts data that has been encrypted using CMS (Cryptographic Message Syntax) EnvelopedData.
+		It supports AES-GCM and ChaCha20Poly1305 encryption algorithms, identified by their OIDs or names.
+		The method first decrypts the content encryption key using the private RSA key, then uses the appropriate
+		symmetric cipher to decrypt the actual content.
+
+		Args:
 			data (bytes): The CMS EnvelopedData to decrypt.
 			passphrase (Optional[str]): Optional passphrase to load the private key if not already loaded.
 
@@ -43,12 +48,7 @@ class Key:
 		Raises:
 			ValueError: If the CMS message is not of type EnvelopedData.
 			KeyError: If the encryption algorithm is not supported.
-			Exception: For errors during decryption (e.g., invalid key, corrupted data).
-
-		Notes:
-			- Supports AES128-GCM, AES256-GCM, and ChaCha20Poly1305 algorithms.
-			- Uses the recipient's private key to decrypt the content encryption key, then decrypts the content.
-			- Adds an authenticated additional data (AAD) string based on the key fingerprint.
+			Exception: If decryption fails due to invalid key, data, or parameters.
 		"""
 		if self._private_key['key'] is None:
 			self.load_private_key(passphrase)
