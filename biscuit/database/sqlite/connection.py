@@ -360,6 +360,16 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def start_transaction(self) -> bool:
+		self._logger.debug("[SQLite] Starting a new transaction")
+		try:
+			self._connection.execute("BEGIN")
+			self._logger.debug("[SQLite] Transaction started successfully")
+			return True
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error starting transaction: {e}")
+			return False
+
 	def synchronize_host(self, host: Host) -> HostId:
 		self._logger.debug(f"[SQLite] Synchronizing host: {host.get_host_name()}")
 

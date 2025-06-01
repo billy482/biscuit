@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from biscuit import Host
 import os
 from typing import Dict, List
 from ..file_info import FileInfo
@@ -17,6 +18,9 @@ class FileSource(Source):
 	def get_files(self, directory: FileInfo) -> List[FileInfo]:
 		files = os.scandir(directory.path())
 		return sorted(map(lambda x: FileInfo.from_stat_result(x.name, x.path, x.stat(), self, directory), files))
+
+	def get_host(self) -> Host:
+		return Host.localhost()
 
 	def get_parent_directory(self, file: str) -> str:
 		return os.path.dirname(file)

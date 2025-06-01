@@ -17,6 +17,9 @@ class Key:
 		if private_key_path is None:
 			private_key_path = 'key'
 
+		from os.path import expanduser
+		private_key_path = expanduser(private_key_path)
+
 		self._cipher = config['key']['cipher'].get()
 		self._public_key = {
 			'fingerprint': {},

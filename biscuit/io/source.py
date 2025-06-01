@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from biscuit import Host
 from typing import List
 from .reader import Reader
 
@@ -29,6 +30,15 @@ class Source:
 
 		Returns:
 			List[FileInfo]: A list of FileInfo objects representing the files in the directory.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
+	def get_host(self) -> Host:
+		"""
+		Returns the host associated with this source.
+
+		Returns:
+		Host: An instance of Host representing the source's host.
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 

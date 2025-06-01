@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from biscuit import Host
 from typing import Dict
 from .filter import Filter
 
@@ -10,6 +11,9 @@ class FileIterator:
 		self._path = config['path'].get()
 		self._filter = Filter(config['options'], filter)
 		self._from = load_config(config)
+
+	def get_host(self) -> Host:
+		return self._from.get_host()
 
 	def __iter__(self):
 		return FileIterator._Iterator(self)

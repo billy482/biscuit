@@ -197,6 +197,12 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
+	def start_transaction(self) -> bool:
+		"""
+		Start a new transaction.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
 	def synchronize_host(self, host: Host) -> HostId:
 		"""
 		Synchronize the host with the database.

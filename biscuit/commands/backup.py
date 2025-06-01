@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from hmac import digest_size
 from biscuit.database import Driver
 from biscuit.io import parse_config as parse_path_config
+from biscuit.key import Key
+from hashlib import sha256
+import json
 import logging
 from typing import Dict
 
@@ -22,6 +26,12 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	else:
 		logger.info("Connected to the database.")
 
+	connection.start_transaction()
+
+	key = Key(config)
+	key.load_public_key()
+	key_id = connection.get_key(key)
+
 	backup_id = connection.start_backup()
 	if backup_id is None:
 		logger.error("Failed to start backup.")
@@ -29,15 +39,51 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 	sources = parse_path_config(config['backup'])
 	for source in sources:
+		host = source.get_host()
+		host_id = connection.synchronize_host(host)
+
 		for file in source:
-			print(file)
+			if not connection.is_newer_or_not_exists(file, host_id):
+				logger.info(f"Skipping {file} as it is not newer or does not exist in the database.")
+				continue
+
+			file_id = connection.insert_file(file, host_id)
+			logger.debug(f"Inserted file {file} with ID {file_id}")
 
 			if file.is_file():
 				reader = file.open_for_read()
-				while (data := reader.read(4096)):
+				while (block_data := reader.read(4096)):
 					print('=', end='', flush=True)
+
+					block_digest = sha256(block_data).digest()
+					block_id = connection.get_block(block_digest, 'sha256', key_id)
+					if block_id is None:
+						block_encrypted = key.encrypt(block_data)
+						block_id = connection.insert_block(block_encrypted, block_digest, 'sha256', key_id)
+						logger.debug(f"Insert new block {block_id}")
+					else:
+						logger.debug(f"Reuse old block {block_id}")
+
+					connection.link_file_to_block(file_id, block_id)
+
 				reader.close()
 				print('.')
+
+			metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
+			metadata_digest = sha256(metadata).digest()
+			metadata_id = connection.get_metadata(metadata_digest, 'sha256')
+			if metadata_id is None:
+				metadata_encrypted = key.encrypt(metadata)
+				metadata_id = connection.insert_metadata(metadata_encrypted, metadata_digest, 'sha256')
+				logger.debug(f"Insert new metadata {metadata_id}")
+			else:
+				logger.debug(f"Reuse old metadata {metadata_id}")
+
+			connection.link_file_to_backup(file_id, backup_id, metadata_id)
+
+	connection.finish_backup(backup_id)
+	connection.commit_transaction()
+	logger.info("Backup completed")
 
 	return 0
 
