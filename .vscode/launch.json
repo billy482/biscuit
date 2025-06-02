@@ -37,9 +37,25 @@
 			"type": "debugpy"
 		},
 		{
+			"args": ["key", "import"],
+			"console": "integratedTerminal",
+			"name": "biscuit: key import",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
 			"args": ["key", "list"],
 			"console": "integratedTerminal",
 			"name": "biscuit: key list",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
+			"args": ["key", "test"],
+			"console": "integratedTerminal",
+			"name": "biscuit: key test",
 			"program": "${workspaceFolder}/biscuit.py",
 			"request": "launch",
 			"type": "debugpy"
