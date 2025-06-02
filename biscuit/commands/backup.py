@@ -43,30 +43,30 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 		host_id = connection.synchronize_host(host)
 
 		for file in source:
-			if not connection.is_newer_or_not_exists(file, host_id):
+			if connection.is_newer_or_not_exists(file, host_id):
+				file_id = connection.insert_file(file, host_id)
+				logger.debug(f"Inserted file {file} with ID {file_id}")
+
+				if file.is_file():
+					sequence = 0
+					reader = file.open_for_read()
+					while (block_data := reader.read(4096)):
+						block_digest = sha256(block_data).digest()
+						block_id = connection.get_block(block_digest, 'sha256', key_id)
+						if block_id is None:
+							block_encrypted = key.encrypt(block_data)
+							block_id = connection.insert_block(block_encrypted, block_digest, 'sha256', key_id)
+							logger.debug(f"Insert new block {block_id}")
+						else:
+							logger.debug(f"Reuse old block {block_id}")
+
+						connection.link_file_to_block(file_id, block_id, sequence)
+						sequence += 1
+
+					reader.close()
+			else:
+				file_id = connection.get_file(file, host_id)
 				logger.info(f"Skipping {file} as it is not newer or does not exist in the database.")
-				continue
-
-			file_id = connection.insert_file(file, host_id)
-			logger.debug(f"Inserted file {file} with ID {file_id}")
-
-			if file.is_file():
-				sequence = 0
-				reader = file.open_for_read()
-				while (block_data := reader.read(4096)):
-					block_digest = sha256(block_data).digest()
-					block_id = connection.get_block(block_digest, 'sha256', key_id)
-					if block_id is None:
-						block_encrypted = key.encrypt(block_data)
-						block_id = connection.insert_block(block_encrypted, block_digest, 'sha256', key_id)
-						logger.debug(f"Insert new block {block_id}")
-					else:
-						logger.debug(f"Reuse old block {block_id}")
-
-					connection.link_file_to_block(file_id, block_id, sequence)
-					sequence += 1
-
-				reader.close()
 
 			metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
 			metadata_digest = sha256(metadata).digest()

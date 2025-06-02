@@ -1,26 +1,26 @@
----
 backup:
   block_size: 4096
   checksum: sha1
   options:
+    exclude: []
     exclude_if_present:
-      - .no_backup
+    - .no_backup
     exclude_other_filesystem: true
   sources:
-    - driver: file
-      options:
-        exclude:
-          - '*.pyc'
-      path: biscuit
+  - driver: file
+    path: biscuit
+    options:
+      exclude:
+      - '*.pyc'
+      exclude_if_present: []
+      exclude_other_filesystem: false
   strategy: timestamp
 database:
   driver: sqlite
   path: biscuit.db
 key:
-  algo: AES256
-  mode: CBC
-  padding: PKCS7
-  path: key
+  cipher: AES256-GCM
+  path: ~/.biscuit/key
 log:
   levels:
     core: debug

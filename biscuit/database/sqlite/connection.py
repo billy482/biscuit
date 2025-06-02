@@ -117,7 +117,29 @@ class SQLiteConnection(Connection):
 
 		finally:
 			cursor.close()
-	
+
+	def get_file(self, file_info: FileInfo, host_id: HostId) -> FileId:
+		self._logger.debug(f"[SQLite] Getting file at path {file_info.path()} with host ID {host_id}")
+
+		query = "SELECT id FROM files WHERE path = $1 AND host = $2 LIMIT 1"
+		try:
+			cursor = self._connection.execute(query, (file_info.path(), host_id))
+			result = cursor.fetchone()
+			if result is None:
+				self._logger.debug(f"[SQLite] File at path {file_info.path()} does not exist")
+				return None
+			else:
+				file_id = result[0]
+				self._logger.debug(f"[SQLite] File at path {file_info.path()} found with ID {file_id}")
+				return file_id
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error fetching file: {e}")
+			return None
+
+		finally:
+			cursor.close()
+
 	def get_key(self, key: Key) -> Any:
 		self._logger.debug(f"[SQLite] Getting key with fingerprint {key.fingerprint()}")
 
@@ -136,7 +158,7 @@ class SQLiteConnection(Connection):
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching key: {e}")
 			return None
-		
+
 		finally:
 			cursor.close()
 
@@ -353,7 +375,7 @@ class SQLiteConnection(Connection):
 			backup_id = cursor.fetchone()[0]
 			self._logger.debug(f"[SQLite] New backup started with ID: {backup_id}")
 			return backup_id
-		
+
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error starting backup: {e}")
 			return None

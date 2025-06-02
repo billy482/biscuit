@@ -58,6 +58,19 @@ class Connection:
 		"""
 		return self._driver
 
+	def get_file(self, file_info: FileInfo, host_id: HostId) -> FileId:
+		"""
+		Get a file from the database.
+
+		Args:
+			file_info (FileInfo): The file information to retrieve.
+			host_id (HostId): The identifier of the host associated with the file.
+
+		Returns:
+			FileId: The identifier of the file.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
 	def get_key(self, key: Key) -> KeyId:
 		"""
 		Get a key from the database.
