@@ -199,6 +199,19 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
+	def modify_file(self, old_file_id: FileId, file_info: FileInfo, sequence: int, host_id: HostId) -> FileId:
+		"""
+		Modify an existing file in the database.
+
+		Args:
+		old_file_id (FileId): The identifier of the file to modify.
+		sequence (int): The sequence number for the modification.
+
+		Returns:
+		FileId: The identifier of the modified file.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
 	def rollback(self) -> bool:
 		"""
 		Rollback the current transaction.

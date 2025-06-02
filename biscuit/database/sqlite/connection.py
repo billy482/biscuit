@@ -339,6 +339,35 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
+	def modify_file(self, old_file_id: FileId, file_info: FileInfo, sequence: int, host_id: HostId) -> FileId:
+		self._logger.debug(f"[SQLite] Modifying file with old ID {old_file_id} at sequence {sequence}")
+
+		query = "INSERT INTO files(path, last_modified, host) VALUES ($1, $2, $3) RETURNING id"
+		try:
+			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
+			file_id = cursor.fetchone()[0]
+			self._logger.debug(f"[SQLite] File at path {file_info.path()} inserted with ID {file_id}")
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error modifying file: {e}")
+			return None
+
+		finally:
+			cursor.close()
+
+		if sequence > 0:
+			query = "INSERT INTO files2blocks (file, block, sequence) SELECT $1, block, sequence FROM files2blocks WHERE file = $2 AND sequence < $3 ORDER BY sequence"
+
+			try:
+				self._connection.execute(query, (file_id, old_file_id, sequence))
+				self._logger.debug(f"[SQLite] Copied blocks from old file ID {old_file_id} to new file ID {file_id} from beginning to sequence {sequence}")
+
+			except sqlite3.Error as e:
+				self._logger.error(f"[SQLite] Error updating sequence for file: {e}")
+				return None
+
+		return file_id
+
 	def rollback(self) -> bool:
 		self._logger.debug("[SQLite] Rolling back transaction")
 		try:

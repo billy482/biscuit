@@ -44,8 +44,15 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 		for file in source:
 			if connection.is_newer_or_not_exists(file, host_id):
-				file_id = connection.insert_file(file, host_id)
-				logger.debug(f"Inserted file {file} with ID {file_id}")
+				file_id = connection.get_file(file, host_id)
+
+				if file_id is None:
+					new_file = True
+					file_id = connection.insert_file(file, host_id)
+					logger.debug(f"Inserted file {file} with ID {file_id}")
+				else:
+					new_file = False
+					logger.debug(f"File {file} already exists with ID {file_id}")
 
 				if file.is_file():
 					sequence = 0
@@ -54,6 +61,11 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 						block_digest = sha256(block_data).digest()
 						block_id = connection.get_block(block_digest, 'sha256', key_id)
 						if block_id is None:
+							if not new_file:
+								file_id = connection.modify_file(file_id, file, sequence, host_id)
+								new_file = True
+								logger.debug(f"Modified file {file} with new ID {file_id}")
+
 							block_encrypted = key.encrypt(block_data)
 							block_id = connection.insert_block(block_encrypted, block_digest, 'sha256', key_id)
 							logger.debug(f"Insert new block {block_id}")

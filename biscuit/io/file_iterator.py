@@ -32,7 +32,7 @@ class FileIterator:
 				if len(self._folders) > 0:
 					self._folders[-1].pop(0)
 				else:
-					raise StopIteration
+					break
 
 		def __next__(self):
 			while len(self._folders) > 0:
@@ -55,3 +55,5 @@ class FileIterator:
 				self._move_to_next()
 
 				return file_info
+
+			raise StopIteration
