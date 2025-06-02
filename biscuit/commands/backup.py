@@ -51,10 +51,9 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 			logger.debug(f"Inserted file {file} with ID {file_id}")
 
 			if file.is_file():
+				sequence = 0
 				reader = file.open_for_read()
 				while (block_data := reader.read(4096)):
-					print('=', end='', flush=True)
-
 					block_digest = sha256(block_data).digest()
 					block_id = connection.get_block(block_digest, 'sha256', key_id)
 					if block_id is None:
@@ -64,17 +63,17 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					else:
 						logger.debug(f"Reuse old block {block_id}")
 
-					connection.link_file_to_block(file_id, block_id)
+					connection.link_file_to_block(file_id, block_id, sequence)
+					sequence += 1
 
 				reader.close()
-				print('.')
 
 			metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
 			metadata_digest = sha256(metadata).digest()
-			metadata_id = connection.get_metadata(metadata_digest, 'sha256')
+			metadata_id = connection.get_metadata(metadata_digest, 'sha256', key_id)
 			if metadata_id is None:
 				metadata_encrypted = key.encrypt(metadata)
-				metadata_id = connection.insert_metadata(metadata_encrypted, metadata_digest, 'sha256')
+				metadata_id = connection.insert_metadata(metadata_encrypted, metadata_digest, 'sha256', key_id)
 				logger.debug(f"Insert new metadata {metadata_id}")
 			else:
 				logger.debug(f"Reuse old metadata {metadata_id}")
@@ -82,8 +81,10 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 			connection.link_file_to_backup(file_id, backup_id, metadata_id)
 
 	connection.finish_backup(backup_id)
-	connection.commit_transaction()
+	connection.commit()
 	logger.info("Backup completed")
+
+	connection.close()
 
 	return 0
 

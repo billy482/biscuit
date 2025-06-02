@@ -70,13 +70,14 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
-	def get_metadata(self, hash: bytes, hash_algo: str) -> MetadataId:
+	def get_metadata(self, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
 		"""
 		Retrieve metadata associated with a block using its hash and hash algorithm.
 
 		Args:
 			hash (bytes): The hash of the block.
 			hash_algo (str): The name of the hash algorithm used.
+			key_id (KeyId): The identifier of the key associated with the metadata.
 
 		Returns:
 			MetadataId: The identifier of the metadata.

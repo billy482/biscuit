@@ -140,12 +140,12 @@ class SQLiteConnection(Connection):
 		finally:
 			cursor.close()
 
-	def get_metadata(self, hash: bytes, hash_algo: str) -> MetadataId:
+	def get_metadata(self, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
 		self._logger.debug(f"[SQLite] Getting metadata for hash {hash.hex()} using {hash_algo}")
 
-		query = "SELECT id FROM metadata WHERE hash = unhex($1) AND hash_algo = $2 LIMIT 1"
+		query = "SELECT id FROM metadata WHERE hash = unhex($1) AND hash_algo = $2 AND key = $3 LIMIT 1"
 		try:
-			cursor = self._connection.execute(query, (hash.hex(), hash_algo))
+			cursor = self._connection.execute(query, (hash.hex(), hash_algo, key_id))
 			result = cursor.fetchone()
 			if result is None:
 				self._logger.debug(f"[SQLite] Metadata for hash {hash.hex()} does not exist")
