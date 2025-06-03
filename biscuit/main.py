@@ -4,7 +4,7 @@ import argparse
 import logging
 from typing import Any, Dict, List
 
-def _configure_logging(config: Dict[str, Any]) -> None:
+def _configure_logging(args: argparse.Namespace, config: Dict[str, Any]) -> None:
 	"""
 	Configures logging for the application based on the provided configuration.
 
@@ -29,8 +29,9 @@ def _configure_logging(config: Dict[str, Any]) -> None:
 	"""
 	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-	ch = logging.StreamHandler()
-	ch.setFormatter(formatter)
+	if args.print_log:
+		ch = logging.StreamHandler()
+		ch.setFormatter(formatter)
 
 	fh = logging.FileHandler(config['path'].get())
 	fh.setFormatter(formatter)
@@ -46,7 +47,8 @@ def _configure_logging(config: Dict[str, Any]) -> None:
 	for type in ['core', 'database', 'keyring', 'ssh']:
 		logger = logging.getLogger('biscuit.' + type)
 		logger.setLevel(levels[config['levels'][type].get()])
-		logger.addHandler(ch)
+		if args.print_log:
+			logger.addHandler(ch)
 		logger.addHandler(fh)
 
 def main(argv: List[str]) -> int:
@@ -66,7 +68,7 @@ def main(argv: List[str]) -> int:
 
 	from .config import parse_config
 	config = parse_config(args.config)
-	_configure_logging(config['log'])
+	_configure_logging(args, config['log'])
 
 	if hasattr(args, 'func'):
 		return args.func(args, config)
@@ -90,8 +92,9 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
 	"""
 	from .commands import parsers
 
-	parser = argparse.ArgumentParser(description='Tool to backup files via ssh into encrypted database')
-	parser.add_argument('-c', '--config', help='Specify alternative configuration file', metavar='FILENAME')
+	parser = argparse.ArgumentParser(description = 'Tool to backup files via ssh into encrypted database')
+	parser.add_argument('-c', '--config', help = 'Specify alternative configuration file', metavar = 'FILENAME')
+	parser.add_argument('--print-log', action = 'store_true', default = False, help = 'Print log messages to console')
 
 	sub_parser = parser.add_subparsers()
 
