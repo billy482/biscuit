@@ -101,5 +101,11 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	return 0
 
 def backup_parse(sub_parser: argparse._SubParsersAction) -> None:
+	from .sub_backup import parsers
+
 	parser = sub_parser.add_parser('backup', help="backup files")
 	parser.set_defaults(func=_backup)
+	sub_parser = parser.add_subparsers()
+
+	for p in parsers:
+		p(sub_parser)

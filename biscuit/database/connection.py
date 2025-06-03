@@ -3,7 +3,7 @@
 from biscuit import Host
 from biscuit.key import Key
 from biscuit.io import FileInfo
-from typing import Any, List, TypeAlias
+from typing import Any, Dict, List, TypeAlias
 from .driver import Driver
 
 BackupId : TypeAlias = Any
@@ -190,6 +190,15 @@ class Connection:
 
 		Returns:
 			bool: True if the link was successful, False otherwise.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
+	def list_backups(self) -> List[Dict[str,Any]]:
+		"""
+		List all backups in the database.
+
+		Returns:
+		List[BackupId]: A list of backup identifiers.
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
