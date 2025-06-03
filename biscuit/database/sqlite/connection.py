@@ -3,9 +3,10 @@
 from biscuit import Host
 from biscuit.key import Key
 from biscuit.io import FileInfo
+from datetime import datetime
 import logging
 import sqlite3
-from typing import Any, List
+from typing import Any, Dict, List
 from .driver import SQLiteDriver
 from ..connection import BackupId, BlockId, Connection, FileId, HostId, KeyId, MetadataId
 
@@ -321,6 +322,32 @@ class SQLiteConnection(Connection):
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error linking file to block: {e}")
 			return False
+
+	def list_backups(self) -> List[Dict[str,Any]]:
+		query = "SELECT id, start_time, end_time, size, increment_size FROM backups ORDER BY id"
+
+		try:
+			cursor = self._connection.cursor()
+			cursor.execute(query)
+
+			backups = []
+			while row := cursor.fetchone():
+				backups.append({
+					'id': row[0],
+					'start_time': datetime.fromtimestamp(row[1]),
+					'end_time': datetime.fromtimestamp(row[2]),
+					'size': row[3],
+					'increment_size': row[4]
+				})
+
+			return backups
+
+		except sqlite3.Error as e:
+			self._logger.error(f"[SQLite] Error listing backups: {e}")
+			return []
+
+		finally:
+			cursor.close()
 
 	def list_keys(self) -> List:
 		query = "SELECT id, fingerprint, length FROM keys ORDER BY id"

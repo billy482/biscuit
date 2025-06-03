@@ -13,6 +13,14 @@
 			"type": "debugpy"
 		},
 		{
+			"args": ["backup", "list"],
+			"console": "integratedTerminal",
+			"name": "biscuit: backup list",
+			"program": "${workspaceFolder}/biscuit.py",
+			"request": "launch",
+			"type": "debugpy"
+		},
+		{
 			"args": ["config", "generate", "-f", "json"],
 			"console": "integratedTerminal",
 			"name": "biscuit: config gen",
