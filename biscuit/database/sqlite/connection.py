@@ -3,8 +3,6 @@
 from biscuit import Host
 from biscuit.key import Key
 from biscuit.io import FileInfo
-from datetime import datetime
-import logging
 import sqlite3
 from typing import Any, Dict, List
 from .driver import SQLiteDriver
@@ -12,6 +10,8 @@ from ..connection import BackupId, BlockId, Connection, FileId, HostId, KeyId, M
 
 class SQLiteConnection(Connection):
 	def __init__(self, connection: sqlite3.Connection, driver: SQLiteDriver):
+		import logging
+
 		super().__init__(driver)
 		self._connection = connection
 		self._logger = logging.getLogger('biscuit.database')
@@ -20,8 +20,7 @@ class SQLiteConnection(Connection):
 		"""
 		Close the connection.
 		"""
-		logger = logging.getLogger('biscuit.database')
-		logger.debug("[SQLite] Closing SQLite connection")
+		self._logger.debug("[SQLite] Closing SQLite connection")
 
 		self._connection.close()
 		return True
@@ -352,6 +351,8 @@ class SQLiteConnection(Connection):
 			return False
 
 	def list_backups(self) -> List[Dict[str,Any]]:
+		from datetime import datetime
+
 		self._logger.info("[SQLite] Listing all backups")
 
 		cursor = None

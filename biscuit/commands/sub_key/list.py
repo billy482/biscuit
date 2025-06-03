@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from biscuit.database import Driver
 from typing import Dict
 
 def _list(args: argparse.Namespace, config: Dict) -> int:
 	"""
 	List all keys in the database.
 	"""
+	from biscuit.database import Driver
+
 	driver = Driver.get_driver(config['database'])
 	if driver is None:
 		print("Error: No database driver found")

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from biscuit.config.value import Value
+import rich.table as table
 from typing import Dict
 
 def check_configuration(config: dict, new_config: Dict) -> None:
@@ -12,7 +13,7 @@ def check_configuration(config: dict, new_config: Dict) -> None:
 		'./biscuit.db'
 	)
 
-def show_configuration(table, add_value, config: dict) -> None:
+def show_configuration(table: table.Table, add_value, config: dict) -> None:
 	"""
 	Show the configuration of the database driver.
 	"""

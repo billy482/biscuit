@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from getpass import getpass
-import logging
 from typing import Dict
 
 def _generate(args: argparse.Namespace, config: Dict) -> int:
@@ -12,6 +10,8 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 
 	from biscuit.database import Driver
 	from biscuit.key import Key
+	from getpass import getpass
+	import logging
 
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Generate new key...")

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from asn1crypto import cms, algos, core, x509
-import base64
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rsa
 import logging
@@ -351,6 +350,8 @@ class Key:
 		Raises:
 			KeyError: If an unsupported algorithm is specified.
 		"""
+		import base64
+
 		if algo in self._public_key['fingerprint']:
 			return self._public_key['fingerprint'][algo]
 

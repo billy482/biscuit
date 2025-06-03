@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from biscuit.database import Driver
-from biscuit.io import parse_config as parse_path_config
-from biscuit.key import Key
-from hashlib import sha256
-import json
-import logging
 from typing import Dict
 
 def _backup(args: argparse.Namespace, config: Dict) -> int:
+	from biscuit.database import Driver
+	from biscuit.io import parse_config as parse_path_config
+	from biscuit.key import Key
+	from hashlib import sha256
+	import json
+	import logging
+
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
 

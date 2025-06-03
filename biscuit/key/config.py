@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from biscuit.config.value import Value
-import logging
 from typing import Dict
 
 algos = [
@@ -30,6 +29,8 @@ def check_configuration(config: Dict, new_config: Dict) -> None:
 	Returns:
 		None
 	"""
+	import logging
+
 	logger = logging.getLogger('biscuit.core')
 
 	if 'cipher' in config:

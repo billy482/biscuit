@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from biscuit.database import Driver
-import logging
-import rich.console as console
-from rich.filesize import decimal
-import rich.table as table
 from typing import Dict
 
 def _list(args: argparse.Namespace, config: Dict) -> int:
 	"""List backup"""
+	from biscuit.database import Driver
+	import logging
+	import rich.console as console
+	from rich.filesize import decimal
+	import rich.table as table
+
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
 

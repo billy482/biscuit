@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import logging
 from typing import Dict
 
 def _generate(args: argparse.Namespace, config: Dict) -> int:
 	from biscuit.config import save_config
+	import logging
 
 	logger = logging.getLogger('biscuit.core')
 	logger.info(f"Starting generating configuration, path: {args.output}, format: {args.format}...")

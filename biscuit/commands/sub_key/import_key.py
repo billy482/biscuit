@@ -1,11 +1,22 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from biscuit.database import Driver
-from biscuit.key import Key
 from typing import Dict
 
 def _import(args: argparse.Namespace, config: Dict) -> int:
+	"""
+	Imports a public key into the database if it does not already exist.
+
+	Args:
+		args (argparse.Namespace): The command-line arguments, expected to contain the file path of the key to import.
+		config (Dict): Configuration dictionary containing at least the 'database' key.
+
+	Returns:
+		int: 0 if the key was successfully imported or already exists, 1 if an error occurred (e.g., no driver or connection).
+	"""
+	from biscuit.database import Driver
+	from biscuit.key import Key
+
 	driver = Driver.get_driver(config['database'])
 	if driver is None:
 		print("Error: No database driver found")
