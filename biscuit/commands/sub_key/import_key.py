@@ -31,6 +31,6 @@ def import_parse(sub_parser: argparse._SubParsersAction) -> None:
 	"""
 	Parse the subcommand for importing keys.
 	"""
-	parser = sub_parser.add_parser('import', help="Import a key into a database from a file")
-	parser.add_argument('-f', '--file', help="Path to the key file to import")
-	parser.set_defaults(func=_import)
+	parser = sub_parser.add_parser('import', help = "Import a key into a database from a file")
+	parser.add_argument('-f', '--file', help = "Path to the key file to import")
+	parser.set_defaults(func = _import)

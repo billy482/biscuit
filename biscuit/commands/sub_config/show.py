@@ -14,7 +14,7 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 	config_table.add_column("Value", justify="right", style="green")
 	config_table.add_column("Default value", justify="right", style="green")
 
-	def add_value(table, key: str, val):
+	def add_value(table: table.Table, key: str, val):
 		table.add_row(key, str(val.get_current()), str(val.get_default()))
 
 	add_value(config_table, "backup.block_size", config['backup']['block_size'])
@@ -52,5 +52,5 @@ def _show(args: argparse.Namespace, config: Dict) -> int:
 	return 0
 
 def show_parse(sub_parser: argparse._SubParsersAction) -> None:
-	parser = sub_parser.add_parser('show', help="Show configuration")
-	parser.set_defaults(func=_show)
+	parser = sub_parser.add_parser('show', help = "Show configuration")
+	parser.set_defaults(func = _show)

@@ -116,7 +116,7 @@ def _save_config_json(config: Dict[str, Any], filename: str) -> None:
 	import json
 
 	with open(filename, 'w') as fd:
-		json.dump(config, fd, indent=4, ensure_ascii=False)
+		json.dump(config, fd, indent = 4, ensure_ascii = False, sort_keys = True)
 
 def _save_config_toml(config: Dict[str, Any], filename: str) -> None:
 	"""
@@ -152,4 +152,4 @@ def _save_config_yaml(config: Dict[str, Any], filename: str) -> None:
 	import yaml
 
 	with open(filename, 'w') as fd:
-		yaml.dump(config, fd, default_flow_style=False, allow_unicode=True, sort_keys=False)
+		yaml.dump(config, fd, default_flow_style = False, allow_unicode = True, sort_keys = True)

@@ -67,9 +67,9 @@ class Key:
 		key = self._private_key['key'].decrypt(
 			encrypted_key,
 			rsa_padding.OAEP(
-				mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
-				algorithm=hashes.SHA256(),
-				label=None
+				mgf = rsa_padding.MGF1(algorithm = hashes.SHA256()),
+				algorithm = hashes.SHA256(),
+				label = None
 			)
 		)
 
@@ -182,7 +182,7 @@ class Key:
 		def encrypt_aes128_ccm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 
-			key = AESCCM.generate_key(bit_length=128)
+			key = AESCCM.generate_key(bit_length = 128)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESCCM(key)
@@ -193,7 +193,7 @@ class Key:
 		def encrypt_aes256_ccm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 
-			key = AESCCM.generate_key(bit_length=256)
+			key = AESCCM.generate_key(bit_length = 256)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESCCM(key)
@@ -204,7 +204,7 @@ class Key:
 		def encrypt_aes128_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-			key = AESGCM.generate_key(bit_length=128)
+			key = AESGCM.generate_key(bit_length = 128)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESGCM(key)
@@ -215,7 +215,7 @@ class Key:
 		def encrypt_aes192_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-			key = AESGCM.generate_key(bit_length=192)
+			key = AESGCM.generate_key(bit_length = 192)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESGCM(key)
@@ -226,7 +226,7 @@ class Key:
 		def encrypt_aes256_gcm(aad: bytes, data: bytes) -> Tuple[bytes, bytes, bytes]:
 			from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-			key = AESGCM.generate_key(bit_length=256)
+			key = AESGCM.generate_key(bit_length = 256)
 			iv = urandom(12)  # AES GCM uses a 12-byte nonce
 
 			cipher = AESGCM(key)
@@ -291,9 +291,9 @@ class Key:
 		enveloped_data = cms.EnvelopedData({
 			'version': 'v0',
 			'recipient_infos': [
-				cms.RecipientInfo(name='ktri', value=cms.KeyTransRecipientInfo({
+				cms.RecipientInfo(name = 'ktri', value = cms.KeyTransRecipientInfo({
 					'version': 'v0',
-					'rid': cms.RecipientIdentifier(name='issuer_and_serial_number', value=cms.IssuerAndSerialNumber({
+					'rid': cms.RecipientIdentifier(name = 'issuer_and_serial_number', value = cms.IssuerAndSerialNumber({
 						'issuer': x509.Name.build({'common_name': 'Biscuit'}),
 						'serial_number': 1
 					})),

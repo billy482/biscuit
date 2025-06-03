@@ -55,8 +55,8 @@ def _generate(args: argparse.Namespace, config: Dict) -> int:
 	return 0
 
 def generate_parse(sub_parser: argparse._SubParsersAction) -> None:
-	parser = sub_parser.add_parser('generate', aliases=["gen"], help="Generate a new rsa key")
-	parser.set_defaults(func=_generate)
-	parser.add_argument('-k', '--key-length', type=int, default=2048, help="Length of the key to generate (default: 2048 bits)", metavar='INT')
-	parser.add_argument('-p', '--path', default='~/.biscuit/key', help="Path (private key) to the generated key. If not specified, defaults to '~/.biscuit/key'.", metavar='FILE')
-	parser.add_argument('-P', '--no-passphrase', action='store_true', help="Do not use a passphrase")
+	parser = sub_parser.add_parser('generate', aliases = ["gen"], help = "Generate a new rsa key")
+	parser.set_defaults(func = _generate)
+	parser.add_argument('-k', '--key-length', type = int, default = 2048, help = "Length of the key to generate (default: 2048 bits)", metavar = 'INT')
+	parser.add_argument('-p', '--path', default = '~/.biscuit/key', help = "Path (private key) to the generated key. If not specified, defaults to '~/.biscuit/key'.", metavar = 'FILE')
+	parser.add_argument('-P', '--no-passphrase', action = 'store_true', help = "Do not use a passphrase")

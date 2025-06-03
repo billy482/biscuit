@@ -42,6 +42,7 @@ class SQLiteConnection(Connection):
 	def finish_backup(self, backup_id: BackupId) -> bool:
 		self._logger.debug(f"[SQLite] finishing backup with ID: {backup_id}")
 
+		cursor = None
 		query = "SELECT SUM(LENGTH(data)) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1))"
 		try:
 			cursor = self._connection.execute(query, (backup_id,))
@@ -53,8 +54,10 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
+		cursor = None
 		query = "SELECT parent_backup FROM backups WHERE id = $1 AND parent_backup IS NOT NULL LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (backup_id,))
@@ -69,8 +72,10 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
+		cursor = None
 		query = "SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1)) AND id NOT IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $2))"
 		try:
 			cursor = self._connection.execute(query, (backup_id, parent_backup[0] if parent_backup else None))
@@ -82,8 +87,10 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
+		cursor = None
 		query = "UPDATE backups SET end_time = unixepoch(), size = $1, increment_size = $2 WHERE id = $3"
 		try:
 			self._connection.execute(query, (total_size, delta_size, backup_id))
@@ -95,11 +102,13 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def get_block(self, hash: bytes, hash_algo: str, key_id: KeyId) -> BlockId:
 		self._logger.debug(f"[SQLite] Getting block with hash {hash.hex()} using {hash_algo} for key {key_id}")
 
+		cursor = None
 		query = "SELECT id FROM blocks WHERE hash = unhex($1) AND hash_algo = $2 AND key = $3 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (hash.hex(), hash_algo, key_id))
@@ -117,11 +126,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def get_file(self, file_info: FileInfo, host_id: HostId) -> FileId:
 		self._logger.debug(f"[SQLite] Getting file at path {file_info.path()} with host ID {host_id}")
 
+		cursor = None
 		query = "SELECT id FROM files WHERE path = $1 AND host = $2 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (file_info.path(), host_id))
@@ -139,11 +150,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def get_key(self, key: Key) -> Any:
 		self._logger.debug(f"[SQLite] Getting key with fingerprint {key.fingerprint()}")
 
+		cursor = None
 		query = "SELECT id FROM keys WHERE fingerprint = $1 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (key.fingerprint(),))
@@ -161,11 +174,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def get_metadata(self, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
 		self._logger.debug(f"[SQLite] Getting metadata for hash {hash.hex()} using {hash_algo}")
 
+		cursor = None
 		query = "SELECT id FROM metadata WHERE hash = unhex($1) AND hash_algo = $2 AND key = $3 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (hash.hex(), hash_algo, key_id))
@@ -183,11 +198,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def has_key(self, key: Key) -> bool:
 		self._logger.debug(f"[SQLite] Checking if key with fingerprint {key.fingerprint()} exists in the database")
 
+		cursor = None
 		query = "SELECT id FROM keys WHERE fingerprint = $1 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (key.fingerprint(),))
@@ -203,11 +220,13 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def import_key(self, key: Key) -> bool:
 		self._logger.debug(f"[SQLite] Importing key with fingerprint {key.fingerprint('sha256')}")
 
+		cursor = None
 		query = "INSERT INTO keys (fingerprint, hash_algo, length) VALUES (?, ?, ?)"
 		params = (key.fingerprint('sha256'), 'sha256', key.key_length())
 
@@ -221,11 +240,13 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def insert_block(self, block: bytes, hash: bytes, hash_algo: str, key_id: KeyId) -> BlockId:
 		self._logger.debug(f"[SQLite] Inserting block with hash {key_id} using {hash_algo}")
 
+		cursor = None
 		query = "INSERT INTO blocks (hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4) RETURNING id"
 		try:
 			cursor = self._connection.execute(query, (hash_algo, hash.hex(), block.hex(), key_id))
@@ -238,11 +259,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def insert_file(self, file_info: FileInfo, host_id: HostId) -> FileId:
 		self._logger.debug(f"[SQLite] Inserting file at path {file_info.path()} with host ID {host_id}")
 
+		cursor = None
 		query = "INSERT INTO files(path, last_modified, host) VALUES ($1, $2, $3) RETURNING id"
 		try:
 			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
@@ -255,11 +278,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def insert_metadata(self, data: bytes, hash: bytes, hash_algo: str, key_id: KeyId) -> MetadataId:
 		self._logger.debug(f"[SQLite] Inserting metadata with hash {hash.hex()} using {hash_algo} for key ID {key_id}")
 
+		cursor = None
 		query = "INSERT INTO metadata(hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4) RETURNING id"
 		try:
 			cursor = self._connection.execute(query, (hash_algo, hash.hex(), data.hex(), key_id))
@@ -272,11 +297,13 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def is_newer_or_not_exists(self, file_info: FileInfo, host_id: HostId) -> bool:
 		self._logger.debug(f"[SQLite] Checking if file at path {file_info.path()} is newer or does not exist in the database")
 
+		cursor = None
 		query = "SELECT * FROM files WHERE path = $1 AND last_modified >= $2 AND host = $3"
 		try:
 			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
@@ -295,7 +322,8 @@ class SQLiteConnection(Connection):
 			return False
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def link_file_to_backup(self, file_id: FileId, backup_id: BackupId, metadata_id: MetadataId) -> bool:
 		self._logger.debug(f"[SQLite] Linking file ID {file_id} to backup ID {backup_id} with metadata ID {metadata_id}")
@@ -324,6 +352,9 @@ class SQLiteConnection(Connection):
 			return False
 
 	def list_backups(self) -> List[Dict[str,Any]]:
+		self._logger.info("[SQLite] Listing all backups")
+
+		cursor = None
 		query = "SELECT id, start_time, end_time, size, increment_size FROM backups ORDER BY id"
 
 		try:
@@ -347,9 +378,13 @@ class SQLiteConnection(Connection):
 			return []
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def list_keys(self) -> List:
+		self._logger.info("[SQLite] Listing all keys")
+
+		cursor = None
 		query = "SELECT id, fingerprint, length FROM keys ORDER BY id"
 
 		try:
@@ -364,11 +399,13 @@ class SQLiteConnection(Connection):
 			return []
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def modify_file(self, old_file_id: FileId, file_info: FileInfo, sequence: int, host_id: HostId) -> FileId:
 		self._logger.debug(f"[SQLite] Modifying file with old ID {old_file_id} at sequence {sequence}")
 
+		cursor = None
 		query = "INSERT INTO files(path, last_modified, host) VALUES ($1, $2, $3) RETURNING id"
 		try:
 			cursor = self._connection.execute(query, (file_info.path(), file_info.mtime(), host_id))
@@ -380,7 +417,8 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 		if sequence > 0:
 			query = "INSERT INTO files2blocks (file, block, sequence) SELECT $1, block, sequence FROM files2blocks WHERE file = $2 AND sequence < $3 ORDER BY sequence"
@@ -407,6 +445,7 @@ class SQLiteConnection(Connection):
 	def start_backup(self) -> BackupId:
 		self._logger.debug("[SQLite] Starting a new backup process")
 
+		cursor = None
 		query = "SELECT COALESCE(MAX(id), -1) FROM backups WHERE end_time IS NOT NULL"
 		try:
 			cursor = self._connection.execute(query)
@@ -418,9 +457,10 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
-
+		cursor = None
 		query = "INSERT INTO backups (parent_backup) VALUES ($1) RETURNING id"
 		try:
 			if backup_seq != -1:
@@ -436,7 +476,8 @@ class SQLiteConnection(Connection):
 			self._logger.error(f"[SQLite] Error starting backup: {e}")
 			return None
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
 	def start_transaction(self) -> bool:
 		self._logger.debug("[SQLite] Starting a new transaction")
@@ -451,6 +492,7 @@ class SQLiteConnection(Connection):
 	def synchronize_host(self, host: Host) -> HostId:
 		self._logger.debug(f"[SQLite] Synchronizing host: {host.get_host_name()}")
 
+		cursor = None
 		query = "SELECT id FROM hosts WHERE hostname = $1 LIMIT 1"
 		try:
 			cursor = self._connection.execute(query, (host.get_host_name(),))
@@ -465,8 +507,10 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()
 
+		cursor = None
 		query = "INSERT INTO hosts(hostname) VALUES ($1) RETURNING id"
 		try:
 			cursor = self._connection.execute(query, (host.get_host_name(),))
@@ -479,4 +523,5 @@ class SQLiteConnection(Connection):
 			return None
 
 		finally:
-			cursor.close()
+			if cursor is not None:
+				cursor.close()

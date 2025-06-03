@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from hmac import digest_size
 from biscuit.database import Driver
 from biscuit.io import parse_config as parse_path_config
 from biscuit.key import Key
@@ -103,8 +102,8 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 def backup_parse(sub_parser: argparse._SubParsersAction) -> None:
 	from .sub_backup import parsers
 
-	parser = sub_parser.add_parser('backup', help="backup files")
-	parser.set_defaults(func=_backup)
+	parser = sub_parser.add_parser('backup', help = "backup files")
+	parser.set_defaults(func = _backup)
 	sub_parser = parser.add_subparsers()
 
 	for p in parsers:

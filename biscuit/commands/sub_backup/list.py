@@ -46,5 +46,5 @@ def _list(args: argparse.Namespace, config: Dict) -> int:
 	return 0
 
 def list_parse(sub_parser: argparse._SubParsersAction) -> None:
-	parser = sub_parser.add_parser('list', help="List backups")
-	parser.set_defaults(func=_list)
+	parser = sub_parser.add_parser('list', help = "List backups")
+	parser.set_defaults(func = _list)

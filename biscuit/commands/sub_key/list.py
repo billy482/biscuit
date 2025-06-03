@@ -29,5 +29,5 @@ def list_parse(sub_parser: argparse._SubParsersAction) -> None:
 	"""
 	Parse the subcommand for listing keys.
 	"""
-	parser = sub_parser.add_parser('list', help="List all keys")
-	parser.set_defaults(func=_list)
+	parser = sub_parser.add_parser('list', help = "List all keys")
+	parser.set_defaults(func = _list)
