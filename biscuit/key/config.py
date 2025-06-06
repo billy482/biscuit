@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from biscuit.config.value import Value
+from biscuit.config import check_is_in_list, check_no_check, check_value, Value
 from typing import Dict
+
+from biscuit.config.parse import check_no_check
 
 algos = [
 	'AES128-CCM',
@@ -29,20 +31,12 @@ def check_configuration(config: Dict, new_config: Dict) -> None:
 	Returns:
 		None
 	"""
-	import logging
-
-	logger = logging.getLogger('biscuit.core')
-
 	if 'cipher' in config:
-		if config['cipher'] not in algos:
-			logger.warning(
-				f"Invalid cipher algorithm '{config['cipher']}' specified. "
-				f"Using default 'AES256-GCM'."
-			)
-			new_config['cipher'] = Value(None, 'AES256-GCM')
-		else:
-			new_config['cipher'] = Value(config['cipher'], 'AES256-GCM')
+		new_config['cipher'] = check_value('keyring.cipher', config['cipher'], 'AES256-GCM', str, check_is_in_list(algos))
 	else:
 		new_config['cipher'] = Value(None, 'AES256-GCM')
 
-	new_config['path'] = Value(config['path'] if 'path' in config else None, '~/.biscuit/key')
+	if  'path' in config:
+		new_config['path'] = check_value('keyring.path', config['path'], '~/.biscuit/key', str, check_no_check)
+	else:
+		new_config['path'] = Value(None, '~/.biscuit/key')

@@ -5,11 +5,12 @@ from typing import Dict
 
 def _show(args: argparse.Namespace, config: Dict) -> int:
 	"""Show configuration"""
+	from biscuit.config import get_config_filename
 	from biscuit.database import show_configuration as show_database_configuration
 	import rich.console as console
 	import rich.table as table
 
-	config_table = table.Table(title=f"Configuration of {args.config}")
+	config_table = table.Table(title=f"Configuration of {get_config_filename(args.config)}")
 	config_table.add_column("Key", justify="left", style="cyan")
 	config_table.add_column("Value", justify="right", style="green")
 	config_table.add_column("Default value", justify="right", style="green")

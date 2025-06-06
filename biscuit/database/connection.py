@@ -26,13 +26,13 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
-	def commit(self) -> bool:
+	def commit(self) -> None:
 		"""
 		Commit the current transaction.
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
-	def finish_backup(self, backup_id: BackupId) -> bool:
+	def finish_backup(self, backup_id: BackupId) -> None:
 		"""
 		Finish a backup process.
 		"""
@@ -221,7 +221,7 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
-	def rollback(self) -> bool:
+	def rollback(self) -> None:
 		"""
 		Rollback the current transaction.
 		"""
@@ -233,7 +233,7 @@ class Connection:
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
 
-	def start_transaction(self) -> bool:
+	def start_transaction(self) -> None:
 		"""
 		Start a new transaction.
 		"""

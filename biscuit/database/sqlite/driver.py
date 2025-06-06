@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from biscuit.database import Connection, Driver
 import logging
 import sqlite3
-from typing import Optional
-from ..connection import Connection
-from ..driver import Driver
-
-ConnectionOptional = Optional[Connection]
 
 class SQLiteDriver(Driver):
 	def __init__(self, config: dict):
 		super().__init__()
 		self._path = config['path'].get()
 
-	def connect(self) -> ConnectionOptional:
+	def connect(self) -> Connection:
 		logger = logging.getLogger('biscuit.database')
 		logger.info(f"[SQLite] Using SQLite database (version: {sqlite3.sqlite_version})")
 
@@ -23,7 +19,7 @@ class SQLiteDriver(Driver):
 
 		except sqlite3.Error as e:
 			logger.error(f"[SQLite] Error while opening database because {e}")
-			return None
+			raise
 
 		try:
 			cursor = connect.cursor()
@@ -34,7 +30,7 @@ class SQLiteDriver(Driver):
 			logger.info(f"[SQLite] Creating SQLite database at {self._path}")
 			if not self._create_db(cursor):
 				logger.error(f"[SQLite] Error while creating database")
-				return None
+
 		logger.info("[SQLite] Connected to SQLite database")
 
 		from .connection import SQLiteConnection
@@ -122,13 +118,11 @@ class SQLiteDriver(Driver):
 			"INSERT INTO configuration VALUES ('db_version', '1')"
 		]
 
-		logger = logging.getLogger('biscuit.database')
 		for query in queries:
 			try:
 				connection.execute(query)
 
 			except sqlite3.Error as e:
-				logger.error(f"[SQLite] Error while creating database because {e}")
-				return False
-
-		return True
+				logger = logging.getLogger('biscuit.database')
+				logger.error(f"[SQLite] Error while creating database with query: {query} because {e}")
+				raise

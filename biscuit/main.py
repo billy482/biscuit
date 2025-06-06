@@ -66,13 +66,35 @@ def main(argv: List[str]) -> int:
 	"""
 	args = _parse_args(argv)
 
-	from .config import parse_config
-	config = parse_config(args.config)
-	_configure_logging(args, config['log'])
+	# logger is not configured yet, so we use print for errors
+	try:
+		from biscuit.config import parse_config
+		config = parse_config(args.config)
 
-	if hasattr(args, 'func'):
-		return args.func(args, config)
-	else:
+	except FileNotFoundError as e:
+		print(f"Configuration file not found: {e}")
+		return 1
+
+	except ValueError as e:
+		print(f"Invalid value found in configuration file: {e}")
+		return 1
+
+	try:
+		_configure_logging(args, config['log'])
+
+		if hasattr(args, 'func'):
+			return args.func(args, config)
+		else:
+			return 1
+
+	except (KeyError, ValueError, FileNotFoundError) as e:
+		logger = logging.getLogger('biscuit.core')
+		logger.exception("A configuration error occurred: %s", e)
+		return 1
+
+	except Exception as e:
+		logger = logging.getLogger('biscuit.core')
+		logger.exception("An unexpected error occurred: %s", e)
 		return 1
 
 def _parse_args(argv: List[str]) -> argparse.Namespace:

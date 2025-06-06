@@ -2,7 +2,7 @@
 
 from asn1crypto import cms, algos, core, x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rsa
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 import logging
 from os import urandom
 from typing import Any, Dict, Optional, Tuple
@@ -29,6 +29,7 @@ class Key:
 			'path': private_key_path,
 			'key': None
 		}
+		self._logger = logging.getLogger('biscuit.keyring')
 
 	def decrypt(self, data: bytes, passphrase: strOpt = None) -> bytes:
 		"""
@@ -65,8 +66,8 @@ class Key:
 		encrypted_key = recipient_info.chosen['encrypted_key'].native
 		key = self._private_key['key'].decrypt(
 			encrypted_key,
-			rsa_padding.OAEP(
-				mgf = rsa_padding.MGF1(algorithm = hashes.SHA256()),
+			padding.OAEP(
+				mgf = padding.MGF1(algorithm = hashes.SHA256()),
 				algorithm = hashes.SHA256(),
 				label = None
 			)
@@ -95,7 +96,7 @@ class Key:
 			from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 			cipher = ChaCha20Poly1305(key)
-			return cipher.encrypt(nonce, encrypted_data, aad)
+			return cipher.decrypt(nonce, encrypted_data, aad)
 
 		algorithms = {
 			'aes128_ccm': {
@@ -280,8 +281,8 @@ class Key:
 
 		encrypted_key = self._public_key['key'].encrypt(
 			key,
-			rsa_padding.OAEP(
-				mgf = rsa_padding.MGF1(hashes.SHA256()),
+			padding.OAEP(
+				mgf = padding.MGF1(hashes.SHA256()),
 				algorithm = hashes.SHA256(),
 				label = None
 			)
@@ -379,19 +380,19 @@ class Key:
 	@staticmethod
 	def generate_key_pair(config: Dict[str, Any], private_key_path: str, key_length: int, passphrase: strOpt) -> 'Key':
 		"""
-		Generate a new RSA key pair and save them to files.
+		Generates a new RSA key pair and returns a Key object containing the generated keys.
 
 		Args:
-			config (Dict[str, Any]): The configuration dictionary containing settings for key generation.
-			private_key_path (str): The file path where the private key will be saved.
-			key_length (int): The length (in bits) of the RSA key to generate.
-			passphrase (Optional[str]): Passphrase to encrypt the private key. If None, the private key is saved unencrypted.
+			config (Dict[str, Any]): Configuration dictionary for the Key object.
+			private_key_path (str): Path where the private key will be stored (can include '~' for home directory).
+			key_length (int): Length of the RSA key to generate, in bits.
+			passphrase (strOpt): Optional passphrase to encrypt the private key.
 
-		Side Effects:
-			Writes the private key to `private_key_path` and the public key to `private_key_path + '.pub'`.
+		Returns:
+			Key: A Key object containing the generated RSA private and public keys.
 
-		Raises:
-			ValueError: If key generation or file writing fails.
+		Logs:
+			Info-level log indicating the path and length of the generated key pair.
 		"""
 		from os.path import expanduser
 
@@ -427,58 +428,71 @@ class Key:
 		else:
 			return 0
 
-	def load_public_key(self) -> bool:
+	def load_public_key(self) -> None:
 		"""
-		Load the public key from the file.
+		Loads a public key from the file path specified in the `_public_key` dictionary.
 
-		Returns:
-			bool: True if the public key was loaded successfully, False otherwise.
+		Reads the public key file in PEM format, deserializes it, and stores the loaded key
+		in the `_public_key['key']` entry. Logs the loading process and handles errors for
+		missing files and invalid key formats.
+
+		Raises:
+			FileNotFoundError: If the public key file does not exist.
+			ValueError: If the public key cannot be deserialized from the file.
 		"""
-		logger = logging.getLogger('biscuit.keyring')
-		logger.info(f"Loading public key from {self._public_key['path']}...")
-
-		with open(self._public_key['path'], 'rb') as f:
-			public_key_bytes = f.read()
+		self._logger.info(f"Loading public key from {self._public_key['path']}...")
 
 		try:
-			self._public_key['key'] = serialization.load_pem_public_key(public_key_bytes)
-			logger.info("Public key loaded successfully.")
-			return True
-		except ValueError as e:
-			logger.error(f"Failed to load public key: {e}")
-			return False
+			with open(self._public_key['path'], 'rb') as f:
+				public_key_bytes = f.read()
 
-	def load_private_key(self, passphrase: strOpt = None) -> bool:
+			self._public_key['key'] = serialization.load_pem_public_key(public_key_bytes)
+			self._logger.info("Public key loaded successfully.")
+
+		except FileNotFoundError as e:
+			self._logger.error(f"Private key file not found: {e}")
+			raise
+
+		except ValueError as e:
+			self._logger.error(f"Failed to load public key: {e}")
+			raise
+
+	def load_private_key(self, passphrase: strOpt = None) -> None:
 		"""
 		Loads a private key from the file specified in self._private_key['path'].
 
-		Attempts to deserialize the private key using the provided passphrase.
-		If the passphrase is None, the key is assumed to be unencrypted.
+		Attempts to read the private key file in PEM format and loads it using the provided passphrase.
+		The loaded key is stored in self._private_key['key'].
 
 		Args:
-			passphrase (Optional[str]): The passphrase to decrypt the private key, or None if the key is unencrypted.
+			passphrase (Optional[str]): The passphrase to decrypt the private key, if it is encrypted.
+				If None, assumes the key is not encrypted.
 
-		Returns:
-			bool: True if the private key was loaded successfully, False if loading or decryption failed.
+		Raises:
+			FileNotFoundError: If the private key file does not exist.
+			ValueError: If the private key cannot be loaded (e.g., due to incorrect passphrase or invalid file format).
 		"""
-		logger = logging.getLogger('biscuit.keyring')
-		logger.info(f"Loading private key from {self._private_key['path']}...")
-
-		with open(self._private_key['path'], 'rb') as f:
-			private_key_bytes = f.read()
+		self._logger.info(f"Loading private key from {self._private_key['path']}...")
 
 		try:
+			with open(self._private_key['path'], 'rb') as f:
+				private_key_bytes = f.read()
+
 			self._private_key['key'] = serialization.load_pem_private_key(
 				private_key_bytes,
 				password = passphrase.encode() if passphrase is not None else None
 			)
-			logger.info("Private key loaded successfully.")
-			return True
-		except ValueError as e:
-			logger.error(f"Failed to load private key: {e}")
-			return False
+			self._logger.info("Private key loaded successfully.")
 
-	def save_public_key(self, path: strOpt = None) -> bool:
+		except FileNotFoundError as e:
+			self._logger.error(f"Private key file not found: {e}")
+			raise
+
+		except ValueError as e:
+			self._logger.error(f"Failed to load private key: {e}")
+			raise
+
+	def save_public_key(self, path: strOpt = None) -> None:
 		"""
 		Saves the public key to the specified path or to the default path if none is provided.
 
@@ -491,22 +505,20 @@ class Key:
 		if path is None:
 			path = self._public_key['path']
 
-		logger = logging.getLogger('biscuit.keyring')
-		logger.info(f"Saving public key to {path}...")
+		self._logger.info(f"Saving public key to {path}...")
 
 		try:
+			public_key_bytes = self._public_key['key'].public_bytes(
+				encoding = serialization.Encoding.PEM,
+				format = serialization.PublicFormat.SubjectPublicKeyInfo
+			)
 			with open(path, 'wb') as f:
-				public_key_bytes = self._public_key['key'].public_bytes(
-					encoding = serialization.Encoding.PEM,
-					format = serialization.PublicFormat.SubjectPublicKeyInfo
-				)
 				f.write(public_key_bytes)
-			logger.info("Public key saved successfully.")
-			return True
+			self._logger.info("Public key saved successfully.")
 
 		except Exception as e:
-			logger.error(f"Failed to save public key: {e}")
-			return False
+			self._logger.error(f"Failed to save public key: {e}")
+			raise
 
 	def save_private_key(self, path: strOpt = None, passphrase: strOpt = None) -> bool:
 		"""
@@ -522,25 +534,25 @@ class Key:
 		if path is None:
 			path = self._private_key['path']
 
-		logger = logging.getLogger('biscuit.keyring')
-		logger.info(f"Saving private key to {path}...")
+		self._logger.info(f"Saving private key to {path}...")
+
+		if passphrase is None:
+			encryption_algorithm = serialization.NoEncryption()
+		else:
+			encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
+
+		private_key_bytes = self._private_key['key'].private_bytes(
+			encoding = serialization.Encoding.PEM,
+			format = serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm = encryption_algorithm
+		)
 
 		try:
 			with open(path, 'wb') as f:
-				if passphrase is None:
-					encryption_algorithm = serialization.NoEncryption()
-				else:
-					encryption_algorithm = serialization.BestAvailableEncryption(passphrase.encode())
-
-				private_key_bytes = self._private_key['key'].private_bytes(
-					encoding = serialization.Encoding.PEM,
-					format = serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm = encryption_algorithm
-				)
 				f.write(private_key_bytes)
-			logger.info("Private key saved successfully.")
+			self._logger.info("Private key saved successfully.")
 			return True
 
 		except Exception as e:
-			logger.error(f"Failed to save private key: {e}")
+			self._logger.error(f"Failed to save private key: {e}")
 			return False

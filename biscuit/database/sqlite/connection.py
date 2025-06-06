@@ -25,7 +25,7 @@ class SQLiteConnection(Connection):
 		self._connection.close()
 		return True
 
-	def commit(self) -> bool:
+	def commit(self) -> None:
 		"""
 		Commit the current transaction.
 		"""
@@ -33,12 +33,12 @@ class SQLiteConnection(Connection):
 
 		try:
 			self._connection.commit()
-			return True
+
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error committing transaction: {e}")
-			return False
+			raise
 
-	def finish_backup(self, backup_id: BackupId) -> bool:
+	def finish_backup(self, backup_id: BackupId) -> None:
 		self._logger.debug(f"[SQLite] finishing backup with ID: {backup_id}")
 
 		cursor = None
@@ -50,7 +50,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error finishing backup ({backup_id}): {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -68,7 +68,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching parent backup ({backup_id}): {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -83,7 +83,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error calculating delta size for backup ({backup_id}): {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -94,11 +94,10 @@ class SQLiteConnection(Connection):
 		try:
 			self._connection.execute(query, (total_size, delta_size, backup_id))
 			self._logger.debug(f"[SQLite] Backup {backup_id} finished successfully")
-			return True
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error updating backup ({backup_id}): {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -122,7 +121,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching block: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -146,7 +145,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching file: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -170,7 +169,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching key: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -194,7 +193,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching metadata: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -216,7 +215,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error checking key existence: {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -236,7 +235,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error importing key ({key.fingerprint('sha256')}): {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -255,7 +254,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error inserting block: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -274,7 +273,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error inserting file ({file_info.path()}): {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -293,7 +292,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error inserting metadata: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -318,7 +317,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error checking file existence or modification time: {e}")
-			return False
+			raise
 
 		finally:
 			if cursor is not None:
@@ -335,7 +334,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error linking file to backup: {e}")
-			return False
+			raise
 
 	def link_file_to_block(self, file_id: Any, block_id: Any, sequence: int) -> bool:
 		self._logger.debug(f"[SQLite] Linking file ID {file_id} to block ID {block_id} with sequence {sequence}")
@@ -348,7 +347,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error linking file to block: {e}")
-			return False
+			raise
 
 	def list_backups(self) -> List[Dict[str,Any]]:
 		from datetime import datetime
@@ -376,7 +375,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error listing backups: {e}")
-			return []
+			raise
 
 		finally:
 			if cursor is not None:
@@ -397,7 +396,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error listing keys: {e}")
-			return []
+			raise
 
 		finally:
 			if cursor is not None:
@@ -415,7 +414,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error modifying file: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -430,18 +429,18 @@ class SQLiteConnection(Connection):
 
 			except sqlite3.Error as e:
 				self._logger.error(f"[SQLite] Error updating sequence for file: {e}")
-				return None
+				raise
 
 		return file_id
 
-	def rollback(self) -> bool:
+	def rollback(self) -> None:
 		self._logger.debug("[SQLite] Rolling back transaction")
 		try:
 			self._connection.rollback()
-			return True
+
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error rolling back transaction: {e}")
-			return False
+			raise
 
 	def start_backup(self) -> BackupId:
 		self._logger.debug("[SQLite] Starting a new backup process")
@@ -455,7 +454,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error fetching last backup ID: {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -475,20 +474,21 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error starting backup: {e}")
-			return None
+			raise
+
 		finally:
 			if cursor is not None:
 				cursor.close()
 
-	def start_transaction(self) -> bool:
+	def start_transaction(self) -> None:
 		self._logger.debug("[SQLite] Starting a new transaction")
 		try:
 			self._connection.execute("BEGIN")
 			self._logger.debug("[SQLite] Transaction started successfully")
-			return True
+
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error starting transaction: {e}")
-			return False
+			raise
 
 	def synchronize_host(self, host: Host) -> HostId:
 		self._logger.debug(f"[SQLite] Synchronizing host: {host.get_host_name()}")
@@ -505,7 +505,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error synchronizing host ({host.get_host_name()}): {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
@@ -521,7 +521,7 @@ class SQLiteConnection(Connection):
 
 		except sqlite3.Error as e:
 			self._logger.error(f"[SQLite] Error inserting new host ({host.get_host_name()}): {e}")
-			return None
+			raise
 
 		finally:
 			if cursor is not None:
