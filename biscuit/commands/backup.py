@@ -54,7 +54,15 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					new_file = False
 					logger.debug(f"File {file} already exists with ID {file_id}")
 
-				if file.is_file():
+				if file.is_link():
+					link = file.read_link().encode()
+					link_digest = sha256(link).digest()
+					link_id = connection.get_block(link_digest, 'sha256', key_id)
+					if link_id is None:
+						link_encrypted = key.encrypt(link)
+						link_id = connection.insert_block(link_encrypted, link_digest, 'sha256', key_id)
+					connection.link_file_to_block(file_id, link_id, 0)
+				elif file.is_file():
 					sequence = 0
 					reader = file.open_for_read()
 					while (block_data := reader.read(4096)):

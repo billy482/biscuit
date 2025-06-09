@@ -49,10 +49,13 @@ class FileInfo:
 		return self._gid
 
 	def is_dir(self) -> bool:
-		return (self._mode & 0o40000) != 0
+		return (self._mode & 0o40000) == 0o40000
 
 	def is_file(self) -> bool:
-		return (self._mode & 0o100000) != 0
+		return (self._mode & 0o100000) == 0o100000
+
+	def is_link(self) -> bool:
+		return (self._mode & 0o120000) == 0o120000
 
 	def __lt__(self, other: 'FileInfo') -> bool:
 		return self._path < other._path
@@ -87,6 +90,9 @@ class FileInfo:
 	
 	def path(self) -> str:
 		return self._path
+
+	def read_link(self) -> str:
+		return self._source.read_link(self)
 
 	def __repr__(self) -> str:
 		return f'FileInfo(path={self._path}, filename={self._filename}, mode={self._mode}, dev={self._dev}, uid={self._uid}, gid={self._gid}, size={self._size}, mtime={self._mtime})'

@@ -8,12 +8,11 @@ class Source:
 	def __init__(self):
 		pass
 
-	def get_file_info(self, parent_directory: str, path: str) -> 'FileInfo':
+	def get_file_info(self, path: str) -> 'FileInfo':
 		"""
 		Retrieves information about a file located at the specified path within the given parent directory.
 
 		Args:
-			parent_directory (str): The path to the parent directory containing the file.
 			path (str): The relative or absolute path to the file whose information is to be retrieved.
 
 		Returns:
@@ -61,5 +60,17 @@ class Source:
 
 		Returns:
 			Reader: An instance of Reader for reading the file.
+		"""
+		raise NotImplementedError("Subclasses must implement this method.")
+
+	def read_link(self, file: 'FileInfo') -> str:
+		"""
+		Read the symbolic link of a file.
+
+		Args:
+			file (FileInfo): The file whose symbolic link is to be read.
+
+		Returns:
+			str: The target of the symbolic link.
 		"""
 		raise NotImplementedError("Subclasses must implement this method.")
