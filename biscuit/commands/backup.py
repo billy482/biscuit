@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from typing import Dict
+from typing import Callable, Dict
 
 def _backup(args: argparse.Namespace, config: Dict) -> int:
 	from biscuit.database import Driver
 	from biscuit.io import parse_config as parse_path_config
 	from biscuit.key import Key
-	from hashlib import sha256
 	import json
 	import logging
 
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
+
+	backup_block_size = config['backup']['block_size'].get()
+	backup_checksum_name = config['backup']['checksum'].get()
+	backup_checksum = _backup_checksum(backup_checksum_name)
 
 	driver = Driver.get_driver(config['database'])
 	if driver is None:
@@ -56,18 +59,18 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 				if file.is_link():
 					link = file.read_link().encode()
-					link_digest = sha256(link).digest()
-					link_id = connection.get_block(link_digest, 'sha256', key_id)
+					link_digest = backup_checksum(link)
+					link_id = connection.get_block(link_digest, backup_checksum_name, key_id)
 					if link_id is None:
 						link_encrypted = key.encrypt(link)
-						link_id = connection.insert_block(link_encrypted, link_digest, 'sha256', key_id)
+						link_id = connection.insert_block(link_encrypted, link_digest, backup_checksum_name, key_id)
 					connection.link_file_to_block(file_id, link_id, 0)
 				elif file.is_file():
 					sequence = 0
 					reader = file.open_for_read()
-					while (block_data := reader.read(4096)):
-						block_digest = sha256(block_data).digest()
-						block_id = connection.get_block(block_digest, 'sha256', key_id)
+					while (block_data := reader.read(backup_block_size)):
+						block_digest = backup_checksum(block_data)
+						block_id = connection.get_block(block_digest, backup_checksum_name, key_id)
 						if block_id is None:
 							if not new_file:
 								file_id = connection.modify_file(file_id, file, sequence, host_id)
@@ -75,7 +78,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 								logger.debug(f"Modified file {file} with new ID {file_id}")
 
 							block_encrypted = key.encrypt(block_data)
-							block_id = connection.insert_block(block_encrypted, block_digest, 'sha256', key_id)
+							block_id = connection.insert_block(block_encrypted, block_digest, backup_checksum_name, key_id)
 							logger.debug(f"Insert new block {block_id}")
 						else:
 							logger.debug(f"Reuse old block {block_id}")
@@ -89,11 +92,11 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 				logger.info(f"Skipping {file} as it is not newer or does not exist in the database.")
 
 			metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
-			metadata_digest = sha256(metadata).digest()
-			metadata_id = connection.get_metadata(metadata_digest, 'sha256', key_id)
+			metadata_digest = backup_checksum(metadata)
+			metadata_id = connection.get_metadata(metadata_digest, backup_checksum_name, key_id)
 			if metadata_id is None:
 				metadata_encrypted = key.encrypt(metadata)
-				metadata_id = connection.insert_metadata(metadata_encrypted, metadata_digest, 'sha256', key_id)
+				metadata_id = connection.insert_metadata(metadata_encrypted, metadata_digest, backup_checksum_name, key_id)
 				logger.debug(f"Insert new metadata {metadata_id}")
 			else:
 				logger.debug(f"Reuse old metadata {metadata_id}")
@@ -107,6 +110,20 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	connection.close()
 
 	return 0
+
+def _backup_checksum(checksum: str) -> Callable[[bytes], bytes]:
+	import hashlib
+
+	algos = {
+		'md5': hashlib.md5,
+		'sha1': hashlib.sha1,
+		'sha256': hashlib.sha256,
+		'sha512': hashlib.sha512
+	}
+
+	func = algos.get(checksum, hashlib.sha1)
+
+	return lambda data: func(data).digest()
 
 def backup_parse(sub_parser: argparse._SubParsersAction) -> None:
 	from .sub_backup import parsers
