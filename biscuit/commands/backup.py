@@ -59,6 +59,8 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	lock_status = Lock()
 
 	def worker(i_worker):
+		from time import time
+
 		key = Key(config)
 		key.load_public_key()
 		key_id = tp_database.submit(connection.get_key, key).result()
@@ -79,7 +81,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					with host_lock:
 						if host not in host_cache:
 							host_cache[host] = tp_database.submit(connection.synchronize_host, host).result()
-						host_id = host_cache[host]
+					host_id = host_cache[host]
 
 					if tp_database.submit(connection.is_newer_or_not_exists, file, host_id).result():
 						file_id = tp_database.submit(connection.get_file, file, host_id).result()
@@ -96,7 +98,6 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 							link = file.read_link().encode()
 							link_digest = sha256(link).digest()
 
-							link_delete = False
 							with cache_wait:
 								while link_digest in cache:
 									logger.debug(f"Worker #{i_worker}: Found link {link_digest} in cache")
@@ -104,25 +105,21 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 								link_id = tp_database.submit(connection.get_block, link_digest, 'sha256', key_id).result()
 								if link_id is None:
-									link_delete = True
 									cache[link_digest] = (link, i_worker)
 
 							if link_id is None:
 								link_encrypted = key.encrypt(link)
-								link_id = tp_database.submit(connection.insert_block, link_encrypted, link_digest, 'sha256', key_id).result()
+								future = tp_database.submit(connection.insert_block, link_encrypted, link_digest, 'sha256', key_id)
 
-							future = tp_database.submit(connection.link_file_to_block, file_id, link_id, 0)
-
-							if link_delete:
 								with cache_wait:
 									del cache[link_digest]
 									cache_wait.notify_all()
 
-							future.result()
+								link_id = future.result()
+
+							tp_database.submit(connection.link_file_to_block, file_id, link_id, 0).result()
 
 						elif file.is_file():
-							from time import time
-
 							sequence = 0
 							reader = file.open_for_read()
 							last_update = int(time())
@@ -134,7 +131,6 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 								block_digest = sha256(block_data).digest()
 								block_id = None
 
-								block_delete = False
 								with cache_wait:
 									while block_digest in cache:
 										logger.debug(f"Worker #{i_worker}: Found block {block_digest} in cache")
@@ -142,7 +138,6 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 									block_id = tp_database.submit(connection.get_block, block_digest, 'sha256', key_id).result()
 									if block_id is None:
-										block_delete = True
 										cache[block_digest] = (block_data, i_worker)
 
 								if block_id is None:
@@ -152,17 +147,18 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 										logger.debug(f"Worker #{i_worker}: Modified file {file} with new ID {file_id}")
 
 									block_encrypted = key.encrypt(block_data)
-									block_id = tp_database.submit(connection.insert_block, block_encrypted, block_digest, 'sha256', key_id).result()
-									logger.debug(f"Worker #{i_worker}: Insert new block {block_id}")
+									future = tp_database.submit(connection.insert_block, block_encrypted, block_digest, 'sha256', key_id)
 
-									if block_delete:
-										with cache_wait:
-											del cache[block_digest]
-											cache_wait.notify_all()
+									with cache_wait:
+										del cache[block_digest]
+										cache_wait.notify_all()
+
+									block_id = future.result()
+									logger.debug(f"Worker #{i_worker}: Insert new block {block_id}")
 								else:
 									logger.debug(f"Worker #{i_worker}: Reuse old block {block_id}")
 
-								tp_database.submit(connection.link_file_to_block, file_id, block_id, sequence).result()
+								future = tp_database.submit(connection.link_file_to_block, file_id, block_id, sequence)
 								sequence += 1
 
 								current_time = int(time())
@@ -171,6 +167,8 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 									pct = 100 * total_read / file.size()
 									with lock_status:
 										statuses[i_worker] = f"Worker #{i_worker}: ~{nb_files}: Processing file {file.path()}: {total_read} / {file.size()} = {pct:.3f} %"
+
+								future.result()
 
 							reader.close()
 					else:
@@ -181,7 +179,6 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
 					metadata_digest = sha256(metadata).digest()
 
-					metadata_delete = False
 					with cache_wait:
 						while metadata_digest in cache:
 							logger.debug(f"Worker #{i_worker}: Found metadata {metadata_digest} in cache")
@@ -189,24 +186,22 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 						metadata_id = tp_database.submit(connection.get_metadata, metadata_digest, 'sha256', key_id).result()
 						if metadata_id is None:
-							metadata_delete = True
 							cache[metadata_digest] = (metadata, i_worker)
 
 					if metadata_id is None:
 						metadata_encrypted = key.encrypt(metadata)
-						metadata_id = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, 'sha256', key_id).result()
-						logger.debug(f"Worker #{i_worker}: Insert new metadata {metadata_id}")
-					else:
-						logger.debug(f"Worker #{i_worker}: Reuse old metadata {metadata_id}")
+						future = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, 'sha256', key_id)
 
-					future = tp_database.submit(connection.link_file_to_backup, file_id, backup_id, metadata_id)
-
-					if metadata_delete:
 						with cache_wait:
 							del cache[metadata_digest]
 							cache_wait.notify_all()
 
-					future.result()
+						metadata_id = future.result()
+						logger.debug(f"Worker #{i_worker}: Insert new metadata {metadata_id}")
+					else:
+						logger.debug(f"Worker #{i_worker}: Reuse old metadata {metadata_id}")
+
+					tp_database.submit(connection.link_file_to_backup, file_id, backup_id, metadata_id).result()
 
 				except Exception as e:
 					logger.error(f"Worker #{i_worker}: Error processing file {file.path()}: {e}")
