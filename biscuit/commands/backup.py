@@ -12,7 +12,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	import json
 	import logging
 	from os import cpu_count
-	from threading import Lock
+	from threading import Condition, Lock
 
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
@@ -46,8 +46,14 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 			for file in source:
 				yield (source, file)
 
+	cache = {}
+	cache_wait = Condition()
+
 	files = gen_files()
 	lock_files = Lock()
+
+	host_cache = {}
+	host_lock = Lock()
 
 	statuses = [ f"Worker #{i}: Waiting for files..." for i in range(nb_workers) ]
 	lock_status = Lock()
@@ -58,90 +64,161 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 		key_id = tp_database.submit(connection.get_key, key).result()
 
 		try:
+			nb_files = 0
 			while True:
 				with lock_files:
 					source, file = next(files)
 
-				with lock_status:
-					statuses[i_worker] = f"Worker #{i_worker}: Processing file {file.path()}"
-				logger.info(f"Worker #{i_worker}: Processing file {file.path()} from source {source}")
+				try:
+					nb_files += 1
+					with lock_status:
+						statuses[i_worker] = f"Worker #{i_worker}: ~{nb_files}: Processing file {file.path()}"
+					logger.info(f"Worker #{i_worker}: Processing file {file.path()} from source {source}")
 
-				host = source.get_host()
-				host_id = tp_database.submit(connection.synchronize_host, host).result()
+					host = source.get_host()
+					with host_lock:
+						if host not in host_cache:
+							host_cache[host] = tp_database.submit(connection.synchronize_host, host).result()
+						host_id = host_cache[host]
 
-				if tp_database.submit(connection.is_newer_or_not_exists, file, host_id).result():
-					file_id = tp_database.submit(connection.get_file, file, host_id).result()
+					if tp_database.submit(connection.is_newer_or_not_exists, file, host_id).result():
+						file_id = tp_database.submit(connection.get_file, file, host_id).result()
 
-					if file_id is None:
-						new_file = True
-						file_id = tp_database.submit(connection.insert_file, file, host_id).result()
-						logger.debug(f"Worker #{i_worker}: Inserted file {file} with ID {file_id}")
+						if file_id is None:
+							new_file = True
+							file_id = tp_database.submit(connection.insert_file, file, host_id).result()
+							logger.debug(f"Worker #{i_worker}: Inserted file {file} with ID {file_id}")
+						else:
+							new_file = False
+							logger.debug(f"Worker #{i_worker}: File {file} already exists with ID {file_id}")
+
+						if file.is_link():
+							link = file.read_link().encode()
+							link_digest = sha256(link).digest()
+
+							link_delete = False
+							with cache_wait:
+								while link_digest in cache:
+									logger.debug(f"Worker #{i_worker}: Found link {link_digest} in cache")
+									cache_wait.wait()
+
+								link_id = tp_database.submit(connection.get_block, link_digest, 'sha256', key_id).result()
+								if link_id is None:
+									link_delete = True
+									cache[link_digest] = (link, i_worker)
+
+							if link_id is None:
+								link_encrypted = key.encrypt(link)
+								link_id = tp_database.submit(connection.insert_block, link_encrypted, link_digest, 'sha256', key_id).result()
+
+							future = tp_database.submit(connection.link_file_to_block, file_id, link_id, 0)
+
+							if link_delete:
+								with cache_wait:
+									del cache[link_digest]
+									cache_wait.notify_all()
+
+							future.result()
+
+						elif file.is_file():
+							from time import time
+
+							sequence = 0
+							reader = file.open_for_read()
+							last_update = int(time())
+							total_read = 0
+
+							while (block_data := reader.read(4096)):
+								total_read += len(block_data)
+
+								block_digest = sha256(block_data).digest()
+								block_id = None
+
+								block_delete = False
+								with cache_wait:
+									while block_digest in cache:
+										logger.debug(f"Worker #{i_worker}: Found block {block_digest} in cache")
+										cache_wait.wait()
+
+									block_id = tp_database.submit(connection.get_block, block_digest, 'sha256', key_id).result()
+									if block_id is None:
+										block_delete = True
+										cache[block_digest] = (block_data, i_worker)
+
+								if block_id is None:
+									if not new_file:
+										file_id = tp_database.submit(connection.modify_file, file_id, file, sequence, host_id).result()
+										new_file = True
+										logger.debug(f"Worker #{i_worker}: Modified file {file} with new ID {file_id}")
+
+									block_encrypted = key.encrypt(block_data)
+									block_id = tp_database.submit(connection.insert_block, block_encrypted, block_digest, 'sha256', key_id).result()
+									logger.debug(f"Worker #{i_worker}: Insert new block {block_id}")
+
+									if block_delete:
+										with cache_wait:
+											del cache[block_digest]
+											cache_wait.notify_all()
+								else:
+									logger.debug(f"Worker #{i_worker}: Reuse old block {block_id}")
+
+								tp_database.submit(connection.link_file_to_block, file_id, block_id, sequence).result()
+								sequence += 1
+
+								current_time = int(time())
+								if last_update != current_time:
+									last_update = current_time
+									pct = 100 * total_read / file.size()
+									with lock_status:
+										statuses[i_worker] = f"Worker #{i_worker}: ~{nb_files}: Processing file {file.path()}: {total_read} / {file.size()} = {pct:.3f} %"
+
+							reader.close()
 					else:
-						new_file = False
-						logger.debug(f"Worker #{i_worker}: File {file} already exists with ID {file_id}")
+						file_id = tp_database.submit(connection.get_file, file, host_id).result()
+						logger.info(f"Worker #{i_worker}: Skipping {file} as it is not newer or does not exist in the database.")
 
-					if file.is_link():
-						link = file.read_link().encode()
-						link_digest = sha256(link).digest()
-						link_id = connection.get_block(link_digest, 'sha256', key_id)
-						if link_id is None:
-							link_encrypted = key.encrypt(link)
-							link_id = connection.insert_block(link_encrypted, link_digest, 'sha256', key_id)
-						connection.link_file_to_block(file_id, link_id, 0)
-					elif file.is_file():
-						from time import time
+					# Update file metadata
+					metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
+					metadata_digest = sha256(metadata).digest()
 
-						sequence = 0
-						reader = file.open_for_read()
-						last_update = int(time())
-						total_read = 0
+					metadata_delete = False
+					with cache_wait:
+						while metadata_digest in cache:
+							logger.debug(f"Worker #{i_worker}: Found metadata {metadata_digest} in cache")
+							cache_wait.wait()
 
-						while (block_data := reader.read(4096)):
-							total_read += len(block_data)
+						metadata_id = tp_database.submit(connection.get_metadata, metadata_digest, 'sha256', key_id).result()
+						if metadata_id is None:
+							metadata_delete = True
+							cache[metadata_digest] = (metadata, i_worker)
 
-							block_digest = sha256(block_data).digest()
-							block_id = tp_database.submit(connection.get_block, block_digest, 'sha256', key_id).result()
-							if block_id is None:
-								if not new_file:
-									file_id = tp_database.submit(connection.modify_file, file_id, file, sequence, host_id).result()
-									new_file = True
-									logger.debug(f"Worker #{i_worker}: Modified file {file} with new ID {file_id}")
+					if metadata_id is None:
+						metadata_encrypted = key.encrypt(metadata)
+						metadata_id = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, 'sha256', key_id).result()
+						logger.debug(f"Worker #{i_worker}: Insert new metadata {metadata_id}")
+					else:
+						logger.debug(f"Worker #{i_worker}: Reuse old metadata {metadata_id}")
 
-								block_encrypted = key.encrypt(block_data)
-								block_id = tp_database.submit(connection.insert_block, block_encrypted, block_digest, 'sha256', key_id).result()
-								logger.debug(f"Worker #{i_worker}: Insert new block {block_id}")
-							else:
-								logger.debug(f"Worker #{i_worker}: Reuse old block {block_id}")
+					future = tp_database.submit(connection.link_file_to_backup, file_id, backup_id, metadata_id)
 
-							tp_database.submit(connection.link_file_to_block, file_id, block_id, sequence).result()
-							sequence += 1
+					if metadata_delete:
+						with cache_wait:
+							del cache[metadata_digest]
+							cache_wait.notify_all()
 
-							current_time = int(time())
-							if last_update != current_time:
-								last_update = current_time
-								pct = 100 * total_read / file.size()
-								with lock_status:
-									statuses[i_worker] = f"Worker #{i_worker}: Processing file {file.path()}: {total_read} / {file.size()} = {pct:.3f} %"
+					future.result()
 
-						reader.close()
-				else:
-					file_id = tp_database.submit(connection.get_file, file, host_id).result()
-					logger.info(f"Worker #{i_worker}: Skipping {file} as it is not newer or does not exist in the database.")
-
-				metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
-				metadata_digest = sha256(metadata).digest()
-				metadata_id = tp_database.submit(connection.get_metadata, metadata_digest, 'sha256', key_id).result()
-				if metadata_id is None:
-					metadata_encrypted = key.encrypt(metadata)
-					metadata_id = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, 'sha256', key_id).result()
-					logger.debug(f"Worker #{i_worker}: Insert new metadata {metadata_id}")
-				else:
-					logger.debug(f"Worker #{i_worker}: Reuse old metadata {metadata_id}")
-
-				tp_database.submit(connection.link_file_to_backup, file_id, backup_id, metadata_id).result()
+				except Exception as e:
+					logger.error(f"Worker #{i_worker}: Error processing file {file.path()}: {e}")
 
 		except StopIteration:
 			logger.info(f"Worker #{i_worker}: Finished processing files.")
+
+		except Exception as e:
+			logger.error(f"Worker #{i_worker}: Error processing files: {e}")
+			with lock_status:
+				statuses[i_worker] = f"Worker #{i_worker}: Error processing files: {e}"
+			raise
 
 	futures = [ tp_workers.submit(worker, i) for i in range(nb_workers) ]
 

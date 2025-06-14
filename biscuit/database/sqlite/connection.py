@@ -245,10 +245,10 @@ class SQLiteConnection(Connection):
 		self._logger.debug(f"[SQLite] Inserting block with hash {key_id} using {hash_algo}")
 
 		cursor = None
-		query = "INSERT INTO blocks (hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4) RETURNING id"
+		query = "INSERT INTO blocks (hash_algo, hash, data, key) VALUES ($1, unhex($2), unhex($3), $4)"
 		try:
 			cursor = self._connection.execute(query, (hash_algo, hash.hex(), block.hex(), key_id))
-			block_id = cursor.fetchone()[0]
+			block_id = cursor.lastrowid
 			self._logger.debug(f"[SQLite] Block inserted with ID {block_id}")
 			return block_id
 

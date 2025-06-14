@@ -5,7 +5,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"args": ["backup"],
+			"args": ["backup", "-p"],
 			"console": "integratedTerminal",
 			"name": "biscuit: backup",
 			"program": "${workspaceFolder}/biscuit.py",
