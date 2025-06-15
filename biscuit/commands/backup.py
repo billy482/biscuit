@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from typing import Dict
+from turtle import back
+from typing import Callable, Dict
 
 def _backup(args: argparse.Namespace, config: Dict) -> int:
 	from biscuit.database import Driver
 	from biscuit.io import parse_config as parse_path_config
 	from biscuit.key import Key
 	from concurrent.futures import ThreadPoolExecutor
-	from hashlib import sha256
 	import json
 	import logging
 	from os import cpu_count
@@ -16,6 +16,10 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 	logger = logging.getLogger('biscuit.core')
 	logger.info("Starting backup process...")
+
+	backup_block_size = config['backup']['block_size'].get()
+	backup_checksum_name = config['backup']['checksum'].get()
+	backup_checksum = _backup_checksum(backup_checksum_name)
 
 	nb_workers = cpu_count() or 1
 	tp_database = ThreadPoolExecutor(max_workers = 1, thread_name_prefix = 'database_worker_')
@@ -96,20 +100,20 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 						if file.is_link():
 							link = file.read_link().encode()
-							link_digest = sha256(link).digest()
+							link_digest = backup_checksum(link)
 
 							with cache_wait:
 								while link_digest in cache:
 									logger.debug(f"Worker #{i_worker}: Found link {link_digest} in cache")
 									cache_wait.wait()
 
-								link_id = tp_database.submit(connection.get_block, link_digest, 'sha256', key_id).result()
+								link_id = tp_database.submit(connection.get_block, link_digest, backup_checksum_name, key_id).result()
 								if link_id is None:
 									cache[link_digest] = (link, i_worker)
 
 							if link_id is None:
 								link_encrypted = key.encrypt(link)
-								future = tp_database.submit(connection.insert_block, link_encrypted, link_digest, 'sha256', key_id)
+								future = tp_database.submit(connection.insert_block, link_encrypted, link_digest, backup_checksum_name, key_id)
 
 								with cache_wait:
 									del cache[link_digest]
@@ -128,7 +132,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 							while (block_data := reader.read(4096)):
 								total_read += len(block_data)
 
-								block_digest = sha256(block_data).digest()
+								block_digest = backup_checksum(block_data)
 								block_id = None
 
 								with cache_wait:
@@ -136,7 +140,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 										logger.debug(f"Worker #{i_worker}: Found block {block_digest} in cache")
 										cache_wait.wait()
 
-									block_id = tp_database.submit(connection.get_block, block_digest, 'sha256', key_id).result()
+									block_id = tp_database.submit(connection.get_block, block_digest, backup_checksum_name, key_id).result()
 									if block_id is None:
 										cache[block_digest] = (block_data, i_worker)
 
@@ -147,7 +151,7 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 										logger.debug(f"Worker #{i_worker}: Modified file {file} with new ID {file_id}")
 
 									block_encrypted = key.encrypt(block_data)
-									future = tp_database.submit(connection.insert_block, block_encrypted, block_digest, 'sha256', key_id)
+									future = tp_database.submit(connection.insert_block, block_encrypted, block_digest, backup_checksum_name, key_id)
 
 									with cache_wait:
 										del cache[block_digest]
@@ -177,20 +181,20 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 
 					# Update file metadata
 					metadata = json.dumps(file.metadata(), sort_keys = True).encode('utf-8')
-					metadata_digest = sha256(metadata).digest()
+					metadata_digest = backup_checksum(metadata)
 
 					with cache_wait:
 						while metadata_digest in cache:
 							logger.debug(f"Worker #{i_worker}: Found metadata {metadata_digest} in cache")
 							cache_wait.wait()
 
-						metadata_id = tp_database.submit(connection.get_metadata, metadata_digest, 'sha256', key_id).result()
+						metadata_id = tp_database.submit(connection.get_metadata, metadata_digest, backup_checksum_name, key_id).result()
 						if metadata_id is None:
 							cache[metadata_digest] = (metadata, i_worker)
 
 					if metadata_id is None:
 						metadata_encrypted = key.encrypt(metadata)
-						future = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, 'sha256', key_id)
+						future = tp_database.submit(connection.insert_metadata, metadata_encrypted, metadata_digest, backup_checksum_name, key_id)
 
 						with cache_wait:
 							del cache[metadata_digest]
@@ -240,6 +244,20 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 	connection.close()
 
 	return 0
+
+def _backup_checksum(checksum: str) -> Callable[[bytes], bytes]:
+	import hashlib
+
+	algos = {
+		'md5': hashlib.md5,
+		'sha1': hashlib.sha1,
+		'sha256': hashlib.sha256,
+		'sha512': hashlib.sha512
+	}
+
+	func = algos.get(checksum, hashlib.sha1)
+
+	return lambda data: func(data).digest()
 
 def backup_parse(sub_parser: argparse._SubParsersAction) -> None:
 	from .sub_backup import parsers
