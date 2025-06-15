@@ -211,6 +211,8 @@ def _backup(args: argparse.Namespace, config: Dict) -> int:
 					logger.error(f"Worker #{i_worker}: Error processing file {file.path()}: {e}")
 
 		except StopIteration:
+			with lock_status:
+				statuses[i_worker] = f"Worker #{i_worker}: Finished processing files."
 			logger.info(f"Worker #{i_worker}: Finished processing files.")
 
 		except Exception as e:
