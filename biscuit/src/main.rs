@@ -1,47 +1,25 @@
-use clap::{Parser,Subcommand};
-use log::LoggerInitError;
+use clap::{Arg, Command};
 
-mod log;
-
-/// Backup utility
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Cli {
-	#[command(subcommand)]
-	command: Commands,
-
-	/// configuration file
-	#[arg(short='f')]
-	config: Option<String>
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-	/// Create new backup
-	Backup,
-	/// Restore a backup
-	Restore
-}
+mod commands;
 
 fn main() {
-	let args = Cli::parse();
+	let command = Command::new("biscuit")
+		.version("1.0")
+		.author("Guillaume Clercin <guillaume.clercin@billy482.net>")
+		.about("A backup tool")
+		.arg(
+			Arg::new("config")
+				.short('c')
+				.long("config")
+				.value_name("FILE")
+				.default_value("biscuit.yaml")
+				.help("Specify alternative configuration file"),
+		);
+	commands::parse_args(&command);
 
-	let config_file = args.config.unwrap_or("biscuit.yaml".to_string());
+	let matches = command.get_matches();
 
-	let config = log::load_logger(&config_file);
-
-	if config.is_err() {
-		eprintln!("Error while loading configuration file: {}", &config_file);
-		match config.err().unwrap() {
-			LoggerInitError::IO(err) => eprint!("because of IO error: {}", err),
-			LoggerInitError::SpdLog(err) => eprintln!("because of spdlog error: {}", err),
-			LoggerInitError::Yaml(err) => eprint!("because of yaml error: {}", err)
-		}
-		return;
-	}
-
-	match args.command {
-		Commands::Backup => {},
-		Commands::Restore => {}
+	if let Some(config) = matches.get_one::<String>("config") {
+		println!("Using config file: {}", config);
 	}
 }

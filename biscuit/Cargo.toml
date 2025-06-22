@@ -1,5 +1,5 @@
 [package]
-authors = ["Clercin Guillaume <guillaume.clercin@billy482.net>"]
+authors = ["Guillaume Clercin <guillaume.clercin@billy482.net>"]
 edition = "2021"
 name = "biscuit"
 version = "0.1.0"
@@ -7,9 +7,6 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { features = ["derive"], version = "4.0" }
-serde = "1.0"
-serde_yml = "0.0.11"
-sha1 = "0.10"
-sha2 = "0.10"
-spdlog-rs = "0.3"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
