@@ -36,7 +36,7 @@ def _list(args: argparse.Namespace, config: Dict) -> int:
 	backup_table.add_column("Increment size", justify="left", style="green")
 
 	def add_backup(table, backup):
-		table.add_row(str(backup['id']), str(backup['start_time']), str(backup['end_time']), decimal(backup['size']), decimal(backup['increment_size']))
+		table.add_row(str(backup['id']), str(backup['start_time']), str(backup['end_time']), decimal(backup['size']), decimal(backup['increment_size']) if backup['increment_size'] is not None else "N/A")
 
 	for backup in backups:
 		add_backup(backup_table, backup)
