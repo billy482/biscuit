@@ -74,22 +74,25 @@ class SQLiteConnection(Connection):
 			if cursor is not None:
 				cursor.close()
 
-		cursor = None
-		query = "SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1)) AND id NOT IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $2))"
-		try:
-			cursor = self._connection.execute(query, (backup_id, parent_backup[0] if parent_backup else None))
-			delta_size = cursor.fetchone()[0]
-			self._logger.debug(f"[SQLite] Delta size for backup {backup_id}: {delta_size} bytes")
+		if parent_backup is not None:
+			cursor = None
+			query = "SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blocks WHERE id IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $1)) AND id NOT IN (SELECT block FROM files2blocks WHERE file IN (SELECT file FROM backups2files WHERE backup = $2))"
+			try:
+				cursor = self._connection.execute(query, (backup_id, parent_backup[0] if parent_backup else None))
+				delta_size = cursor.fetchone()[0]
+				self._logger.debug(f"[SQLite] Delta size for backup {backup_id}: {delta_size} bytes")
 
-		except sqlite3.Error as e:
-			self._logger.error(f"[SQLite] Error calculating delta size for backup ({backup_id}): {e}")
-			raise
+			except sqlite3.Error as e:
+				self._logger.error(f"[SQLite] Error calculating delta size for backup ({backup_id}): {e}")
+				raise
 
-		finally:
-			if cursor is not None:
-				cursor.close()
+			finally:
+				if cursor is not None:
+					cursor.close()
 
-		cursor = None
+		else:
+			delta_size = None
+
 		query = "UPDATE backups SET end_time = unixepoch(), size = $1, increment_size = $2 WHERE id = $3"
 		try:
 			self._connection.execute(query, (total_size, delta_size, backup_id))
